@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE filesystem PUBLIC "-//NetBeans//DTD Filesystem 1.2//EN" "http://www.netbeans.org/dtds/filesystem-1_2.dtd">
+<filesystem>
+    <folder name="Actions">
+        <folder name="Window">
+            <file name="org-ldtwo-jgoogletts-DL_MP3_Action.instance">
+                <attr name="component" methodvalue="org.ldtwo.jgoogletts.DL_MP3_TopComponent.findInstance"/>
+                <attr name="displayName" bundlevalue="org.ldtwo.jgoogletts.Bundle#CTL_DL_MP3_Action"/>
+                <attr name="instanceCreate" methodvalue="org.openide.windows.TopComponent.openAction"/>
+            </file>
+        </folder>
+    </folder>
+    <folder name="Menu">
+        <folder name="Window">
+            <file name="DL_MP3_Action.shadow">
+                <attr name="originalFile" stringvalue="Actions/Window/org-ldtwo-jgoogletts-DL_MP3_Action.instance"/>
+            </file>
+        </folder>
+    </folder>
+    <folder name="Windows2">
+        <folder name="Components">
+            <file name="DL_MP3_TopComponent.settings" url="DL_MP3_TopComponentSettings.xml"/>
+        </folder>
+        <folder name="Modes">
+            <folder name="explorer">
+                <file name="DL_MP3_TopComponent.wstcref" url="DL_MP3_TopComponentWstcref.xml"/>
+            </folder>
+        </folder>
+    </folder>
+</filesystem>
