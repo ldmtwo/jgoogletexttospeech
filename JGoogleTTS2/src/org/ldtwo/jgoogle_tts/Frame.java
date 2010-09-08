@@ -10,20 +10,27 @@
  */
 package org.ldtwo.jgoogle_tts;
 
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.io.File;
-import java.io.FileInputStream;
 import java.util.LinkedList;
-import javazoom.jl.player.Player;
+import javax.swing.JMenu;
+import javax.swing.JMenuItem;
 
 /**
  *
  * @author Larry Moore
  */
-public class Frame extends javax.swing.JFrame {
+public final class Frame extends javax.swing.JFrame {
+
+    String language = "en";
 
     /** Creates new form Frame */
     public Frame() {
         initComponents();
+        init();
+
+        setTitle("JGoogle TTS");
     }
 
     /** This method is called from within the constructor to
@@ -37,7 +44,7 @@ public class Frame extends javax.swing.JFrame {
 
         jPanel1 = new javax.swing.JPanel();
         jScrollPane1 = new javax.swing.JScrollPane();
-        txt = new javax.swing.JTextPane();
+        txt = new javax.swing.JTextArea();
         jMenuBar1 = new javax.swing.JMenuBar();
         jMenu1 = new javax.swing.JMenu();
         jMenuItem1 = new javax.swing.JMenuItem();
@@ -45,12 +52,16 @@ public class Frame extends javax.swing.JFrame {
         jMenu2 = new javax.swing.JMenu();
         jMenu3 = new javax.swing.JMenu();
         jMenuItem3 = new javax.swing.JMenuItem();
+        lang = new javax.swing.JMenu();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 
-        jPanel1.setLayout(new java.awt.GridLayout());
+        jPanel1.setLayout(new java.awt.GridLayout(1, 0));
 
-        txt.setText("hello");
+        txt.setColumns(20);
+        txt.setLineWrap(true);
+        txt.setRows(5);
+        txt.setText("Thank you for trying JGoogle TTS.\n\nhttp://code.google.com/p/jgoogletexttospeech/\n\nHello, how are you today?\nBonjour, comment allez-vous aujourd'hui?\nHola, ¿cómo estás hoy?\nHallo, wie geht es Ihnen heute?\nHej, hur mår du idag?\n\n\n\n");
         jScrollPane1.setViewportView(txt);
 
         jPanel1.add(jScrollPane1);
@@ -58,6 +69,7 @@ public class Frame extends javax.swing.JFrame {
         jMenu1.setText("File");
 
         jMenuItem1.setText("Open");
+        jMenuItem1.setEnabled(false);
         jMenu1.add(jMenuItem1);
 
         jMenuItem2.setText("Exit");
@@ -69,14 +81,14 @@ public class Frame extends javax.swing.JFrame {
         jMenu2.setEnabled(false);
         jMenuBar1.add(jMenu2);
 
-        jMenu3.setText("Play");
+        jMenu3.setText("Command");
         jMenu3.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 jMenu3ActionPerformed(evt);
             }
         });
 
-        jMenuItem3.setText("P");
+        jMenuItem3.setText("Play all");
         jMenuItem3.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 jMenuItem3ActionPerformed(evt);
@@ -86,13 +98,16 @@ public class Frame extends javax.swing.JFrame {
 
         jMenuBar1.add(jMenu3);
 
+        lang.setText("Language");
+        jMenuBar1.add(lang);
+
         setJMenuBar(jMenuBar1);
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, 400, Short.MAX_VALUE)
+            .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, 480, Short.MAX_VALUE)
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -109,7 +124,11 @@ public class Frame extends javax.swing.JFrame {
         Runnable runnable = new Runnable() {
 
             public void run() {
-                playMP3s();
+                try {
+                    playMP3s();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
             }
         };
         new Thread(runnable).start();
@@ -137,43 +156,71 @@ public class Frame extends javax.swing.JFrame {
     private javax.swing.JMenuItem jMenuItem3;
     private javax.swing.JPanel jPanel1;
     private javax.swing.JScrollPane jScrollPane1;
-    private javax.swing.JTextPane txt;
+    private javax.swing.JMenu lang;
+    private javax.swing.JTextArea txt;
     // End of variables declaration//GEN-END:variables
 
 
+    String format(String s){
+        s=s.toLowerCase().replace("jgoogle", " chay google ")//
+                .replace(" tts", " text to speech ").replace("+", " ");
+        String ret="";
+        for(char ch:s.toCharArray()){
+            if(Character.isLetterOrDigit(ch))
+                ret+=""+ch;
+            else ret+=" ";
+        }
+        while(ret.contains("  "))ret=ret.replace("  ", " ");
+        System.out.println(ret.trim().replace(" ", "+"));
+        return ret.trim().replace(" ", "+");
+    }
     public File getMP3() {
 
-        return new Main().getAndPlay("translate.google.com",
-                txt.getText().replace(" ", "+"),
+        return new Main(language).getAndPlay("translate.google.com",
+                format(txt.getText()),
                 false);
     }
 
     public File playMP3() {
 
-        return new Main().getAndPlay("translate.google.com",
-                txt.getText().replace(" ", "+"),
+        return new Main(language).getAndPlay("translate.google.com",
+                format(txt.getText()),
                 true);
     }
- public void playMP3(File f) {
-         new Main().play(f);
+
+    public void playMP3(File f) {
+        new Main(language).play(f);
     }
 
     public File playMP3(String s) {
-        return new Main().getAndPlay("translate.google.com",
-                s.replace(" ", "+"),
+        return new Main(language).getAndPlay("translate.google.com",
+                 format(s),
                 true);
-    }public File getMP3(String s) {
-        return new Main().getAndPlay("translate.google.com",
-                s.replace(" ", "+"),
+    }
+
+    public File getMP3(String s) {
+        return new Main(language).getAndPlay("translate.google.com",
+                format(s),
                 false);
     }
 
     public void playMP3s() {
-        LinkedList<File> files=new LinkedList<File>();
+        LinkedList<File> files = new LinkedList<File>();
         String s = " " + txt.getText() + " ";
+        s=format(s);
         int a = 0, b;
         while (a < s.length()) {
-            b = s.indexOf(" ", a + 85);
+
+            b = s.indexOf("+", a+70 );
+//            int nextIdx=b;
+//            do{
+//                nextIdx=s.indexOf("+", b+1);
+//                if(nextIdx-a<90)
+//                    b=nextIdx;
+//                else break;
+//            }while(true);
+            //b = s.indexOf(" ", a + 80);
+
             String txt;
             try {
                 if (a >= 0) {
@@ -187,14 +234,160 @@ public class Frame extends javax.swing.JFrame {
                 }
                 a += b - a;
                 files.add(getMP3(txt));
-               
+
             } catch (Exception e) {
                 System.err.println("a=" + a + "; b=" + b);
                 e.printStackTrace();
             }
         }
-        for(File f:files){
-             playMP3(f);
+        for (File f : files) {
+            playMP3(f);
         }
+    }
+
+    void init() {
+        String[] langs = {"af	Afrikaans",
+            "sq	Albanian",
+            "am	Amharic",
+            "ar	Arabic",
+            "hy	Armenian",
+            "az	Azerbaijani",
+            "eu	Basque",
+            "be	Belarusian",
+            "bn	Bengali",
+            "bh	Bihari",
+            "bs	Bosnian",
+            "br	Breton",
+            "bg	Bulgarian",
+            "km	Cambodian",
+            "ca	Catalan",
+            "zh-CN	Chinese (Simplified)",
+            "zh-TW	Chinese (Traditional)",
+            "co	Corsican",
+            "hr	Croatian",
+            "cs	Czech",
+            "da	Danish",
+            "nl	Dutch",
+            "en	English",
+            "eo	Esperanto",
+            "et	Estonian",
+            "fo	Faroese",
+            "tl	Filipino",
+            "fi	Finnish",
+            "fr	French",
+            "fy	Frisian",
+            "gl	Galician",
+            "ka	Georgian",
+            "de	German",
+            "el	Greek",
+            "gn	Guarani",
+            "gu	Gujarati",
+            "xx-hacker	 Hacker",
+            "ha	Hausa",
+            "iw	Hebrew",
+            "hi	Hindi",
+            "hu	Hungarian",
+            "is	Icelandic",
+            "id	Indonesian",
+            "ia	Interlingua",
+            "ga	Irish",
+            "it	Italian",
+            "ja	Japanese",
+            "jw	Javanese",
+            "kn	Kannada",
+            "kk	Kazakh",
+            "rw	Kinyarwanda",
+            "rn	Kirundi",
+            "xx-klingon	Klingon",
+            "ko	Korean",
+            "ku	Kurdish",
+            "ky	Kyrgyz",
+            "lo	Laothian",
+            "la	Latin",
+            "lv	Latvian",
+            "ln	Lingala",
+            "lt	Lithuanian",
+            "mk	Macedonian",
+            "mg	Malagasy",
+            "ms	Malay",
+            "ml	Malayalam",
+            "mt	Maltese",
+            "mi	Maori",
+            "mr	Marathi",
+            "mo	Moldavian",
+            "mn	Mongolian",
+            "sr-ME	Montenegrin",
+            "ne	Nepali",
+            "no	Norwegian",
+            "nn	Norwegian (Nynorsk)",
+            "oc	Occitan",
+            "or	Oriya",
+            "om	Oromo",
+            "ps	Pashto",
+            "fa	Persian",
+            "xx-pirate	 Pirate",
+            "pl	Polish",
+            "pt-BR	Portuguese (Brazil)",
+            "pt-PT	Portuguese (Portugal)",
+            "pa	Punjabi",
+            "qu	Quechua",
+            "ro	Romanian",
+            "rm	Romansh",
+            "ru	Russian",
+            "gd	Scots Gaelic",
+            "sr	Serbian",
+            "sh	Serbo-Croatian",
+            "st	Sesotho",
+            "sn	Shona",
+            "sd	Sindhi",
+            "si	Sinhalese",
+            "sk	Slovak",
+            "sl	Slovenian",
+            "so	Somali",
+            "es	Spanish",
+            "su	Sundanese",
+            "sw	Swahili",
+            "sv	Swedish",
+            "tg	Tajik",
+            "ta	Tamil",
+            "tt	Tatar",
+            "te	Telugu",
+            "th	Thai",
+            "ti	Tigrinya",
+            "to	Tonga",
+            "tr	Turkish",
+            "tk	Turkmen",
+            "tw	Twi",
+            "ug	Uighur",
+            "uk	Ukrainian",
+            "ur	Urdu",
+            "uz	Uzbek",
+            "vi	Vietnamese",
+            "cy	Welsh",
+            "xh	Xhosa",
+            "yi	Yiddish",
+            "yo	Yoruba",
+            "zu	Zulu"};
+        JMenu[] subMenus = new JMenu[26];
+        for (int x = 0; x < subMenus.length; x++) {
+            subMenus[x] = new JMenu("       " + (char) ('A' + x) + "       ");
+            lang.add(subMenus[x]);
+        }
+        for (String l : langs) {
+            final String[] str = l.split("\t");
+            JMenuItem item = new JMenuItem(str[1]);
+            item.addActionListener(new ActionListener() {
+
+                public void actionPerformed(ActionEvent e) {
+                    setLanguage(str[0]);
+                    setTitle("JGoogle TTS - " + str[1]);
+                }
+            });
+            subMenus[str[1].trim().charAt(0) - 'A'].add(item);
+        }
+    }
+
+    void setLanguage(String language) {
+        this.language = language;
     }
 }

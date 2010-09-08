@@ -17,13 +17,21 @@ import javazoom.jl.player.Player;
  * @author Larry Moore
  */
 public class Main {
+public String language="en";
+
+    public Main() {
+    }
+
+    public Main(String language) {
+        this.language = language;
+    }
 
     public File getAndPlay(String site, String path, boolean play) {
         try {
             //        File f = null;
             SocketClient socket = new SocketClient();
             //        socket.run();
-            socket.theFile.setText("translate_tts?tl=en&q="+path);
+            socket.theFile.setText("translate_tts?tl="+language+"&q="+path);
             socket.theServer.setText(site);
             //        Thread thread   = new Thread(socket);
             //                thread.start();
@@ -117,7 +125,7 @@ public class Main {
         }
     }
 
-    static public File getMP3() {
+     public File getMP3() {
         URL u;
         InputStream is = null;
         DataInputStream dis;
@@ -127,7 +135,7 @@ public class Main {
         try {
             tmpFile = File.createTempFile("jgoogle_tts-" + System.currentTimeMillis(), ".mp3");
             fos = new FileOutputStream(tmpFile);
-            u = new URL("http://translate.google.com/translate_tts?tl=en&q=text");
+            u = new URL("http://translate.google.com/translate_tts?tl="+language+"&q=text");
             is = u.openStream();         // throws an IOException
             dis = new DataInputStream(new BufferedInputStream(is));
             byte[] buff = new byte[1024];
@@ -152,7 +160,7 @@ public class Main {
         return tmpFile;
     }
 
-    static public File getMP3(InputStream iss) {
+     public File getMP3(InputStream iss) {
         URL u;
         DataInputStream dis;
         FileOutputStream fos;
@@ -234,7 +242,7 @@ public class Main {
     }
     //Listing 4
 
-    static public class SocketClient extends Frame implements Runnable {
+    static private class SocketClient implements Runnable {
         /* *******   Data Section    ******** */
 
         public TextField theServer, theFile;
@@ -251,9 +259,9 @@ public class Main {
          * default file to search for.*/
         public SocketClient() {
 
-            setTitle("Socket Client Example");
+            //setTitle("Socket Client Example");
             //Set the frame window title.
-            setLayout(new BorderLayout());
+            //setLayout(new BorderLayout());
             //Set the layout for the window.
             theServer = new TextField("www.", 20);
             //Create the data entry fields.
@@ -279,9 +287,9 @@ public class Main {
             pan.add(stopSearch);
 
 
-            add("North", pan);
-            //Add the panel North.
-            add("Center", theHTMLCode);
+//            add("North", pan);
+//            //Add the panel North.
+//            add("Center", theHTMLCode);
             //Add the TextArea Center.
 
             thread = new Thread(this);
@@ -298,35 +306,35 @@ public class Main {
          * from a user pressing a button or destroying the window (Exiting the program).
          * @param Event e
          * @see event*/
-        public boolean handleEvent(Event e) {
-            if (e.target == search) {
-                //If the Search Button was pressed, do this.
-                thread.stop();
-                if (theFile.getText().equals("")) {
-                    //If no file was specified
-                    theFile.setText("index.html");
-                    //  set the file name to index.html.
-                }
-                theHTMLCode.setText("Looking Up Server: " + theServer.getText());
-                thread = new Thread(this);
-                thread.start();
-                //This calls the run() method for this.
-                return true;
-            }
-            if (e.target == stopSearch) {
-                //If the Stop Button was pressed, do this.
-                thread.stop();
-                theHTMLCode.setText("Operation aborted by user");
-                return true;
-            }
-            if (e.id == Event.WINDOW_DESTROY) {
-                //If the user wants to exit the program.
-                System.exit(0);
-                //Notice how we do not need to return here.
-            }
-            return super.handleEvent(e);
-            //If we do not handle the event, pass it up the chain.
-        }
+//        public boolean handleEvent(Event e) {
+//            if (e.target == search) {
+//                //If the Search Button was pressed, do this.
+//                thread.stop();
+//                if (theFile.getText().equals("")) {
+//                    //If no file was specified
+//                    theFile.setText("index.html");
+//                    //  set the file name to index.html.
+//                }
+//                theHTMLCode.setText("Looking Up Server: " + theServer.getText());
+//                thread = new Thread(this);
+//                thread.start();
+//                //This calls the run() method for this.
+//                return true;
+//            }
+//            if (e.target == stopSearch) {
+//                //If the Stop Button was pressed, do this.
+//                thread.stop();
+//                theHTMLCode.setText("Operation aborted by user");
+//                return true;
+//            }
+//            if (e.id == Event.WINDOW_DESTROY) {
+//                //If the user wants to exit the program.
+//                System.exit(0);
+//                //Notice how we do not need to return here.
+//            }
+//            return super.handleEvent(e);
+//            //If we do not handle the event, pass it up the chain.
+//        }
 
         //Listing 6: Run Method
         /**
@@ -361,7 +369,7 @@ public class Main {
                 //Read the file until EOF.
                 StringBuffer buff = new StringBuffer();
                 String currLine;
-                file = Main.getMP3(inStream);
+                file = new Main().getMP3(inStream);
 //                String lastLine;
 //                                while ((currLine = inStream.readLine()) != null) {
 //                                    buff.append(currLine+"\n" );
