@@ -80,50 +80,50 @@ public String language="en";
         }
     }
 
-    /**
-     * @param args the command line arguments
-     */
-    public static void main(String[] a) {
-        try {
-            //        File f = null;
-            SocketClient socket = new SocketClient();
-            //        socket.run();
-            socket.theFile.setText("translate_tts?tl=en&q=help+me+" + (System.currentTimeMillis() % 1000));
-            socket.theServer.setText("translate.google.com");
-            //        Thread thread   = new Thread(socket);
-            //                thread.start();
-            File file = socket.getFile();
-            Runtime run = Runtime.getRuntime();
-            try {
-                Thread.sleep(500);
-            } catch (InterruptedException ex) {
-                Logger.getLogger(Main.class.getName()).log(Level.SEVERE, null, ex);
-            }
-            String fname = "";
-            fname = file.getAbsolutePath();
-            String arg = "cmd /C start \"title\" \"" + fname + "\"";
-            String[] args = {"cmd", "/C start \"title\" \"" + file.getAbsolutePath() + "\""};
-            System.out.println(arg);
-            Process proc = run.exec(args);
-
-            ProcessBuilder pb = new ProcessBuilder(args);
-            pb.start();
-            proc.waitFor();
-//         String arg="start "+file.getAbsolutePath()+"";
-            try {
-
-                Player p = new Player(new FileInputStream(file));
-                p.play();
-//                                    Process proc=run.exec(arg);
-                //run.addShutdownHook(thread);
-            } catch (Exception ex) {
-                ex.printStackTrace();
-            }
-
-        } catch (Exception ex) {
-            Logger.getLogger(Main.class.getName()).log(Level.SEVERE, null, ex);
-        }
-    }
+//    /**
+//     * @param args the command line arguments
+//     */
+//    public static void main(String[] a) {
+//        try {
+//            //        File f = null;
+//            SocketClient socket = new SocketClient();
+//            //        socket.run();
+//            socket.theFile.setText("translate_tts?tl=en&q=help+me+" + (System.currentTimeMillis() % 1000));
+//            socket.theServer.setText("translate.google.com");
+//            //        Thread thread   = new Thread(socket);
+//            //                thread.start();
+//            File file = socket.getFile();
+//            Runtime run = Runtime.getRuntime();
+//            try {
+//                Thread.sleep(500);
+//            } catch (InterruptedException ex) {
+//                Logger.getLogger(Main.class.getName()).log(Level.SEVERE, null, ex);
+//            }
+//            String fname = "";
+//            fname = file.getAbsolutePath();
+//            String arg = "cmd /C start \"title\" \"" + fname + "\"";
+//            String[] args = {"cmd", "/C start \"title\" \"" + file.getAbsolutePath() + "\""};
+//            System.out.println(arg);
+//            Process proc = run.exec(args);
+//
+//            ProcessBuilder pb = new ProcessBuilder(args);
+//            pb.start();
+//            proc.waitFor();
+////         String arg="start "+file.getAbsolutePath()+"";
+//            try {
+//
+//                Player p = new Player(new FileInputStream(file));
+//                p.play();
+////                                    Process proc=run.exec(arg);
+//                //run.addShutdownHook(thread);
+//            } catch (Exception ex) {
+//                ex.printStackTrace();
+//            }
+//
+//        } catch (Exception ex) {
+//            Logger.getLogger(Main.class.getName()).log(Level.SEVERE, null, ex);
+//        }
+//    }
 
      public File getMP3() {
         URL u;
