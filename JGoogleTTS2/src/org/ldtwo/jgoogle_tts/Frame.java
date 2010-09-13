@@ -171,7 +171,7 @@ public final class Frame extends javax.swing.JFrame {
             else ret+=" ";
         }
         while(ret.contains("  "))ret=ret.replace("  ", " ");
-        System.out.println(ret.trim().replace(" ", "+"));
+        //System.out.println(ret.trim().replace(" ", "+"));
         return ret.trim().replace(" ", "+");
     }
     public File getMP3() {
@@ -246,7 +246,8 @@ public final class Frame extends javax.swing.JFrame {
     }
 
     void init() {
-        String[] langs = {"af	Afrikaans",
+        String[] langs = {
+            "af	Afrikaans",
             "sq	Albanian",
             "am	Amharic",
             "ar	Arabic",

@@ -9,6 +9,9 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.io.*;
 import java.net.*;
+import javax.swing.JButton;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javazoom.jl.player.Player;
 import javazoom.jl.player.advanced.AdvancedPlayer;
 
@@ -17,7 +20,8 @@ import javazoom.jl.player.advanced.AdvancedPlayer;
  * @author Larry Moore
  */
 public class Main {
-public String language="en";
+
+    public String language = "en";
 
     public Main() {
     }
@@ -29,21 +33,28 @@ public String language="en";
     public File getAndPlay(String site, String path, boolean play) {
         try {
             SocketClient socket = new SocketClient();
-            socket.path.setText("translate_tts?tl="+language+"&q="+path);
+            socket.path.setText("translate_tts?tl=" + language + "&q=" + path);
             socket.address.setText(site);
             File file = socket.getFile();
             String fname = "";
             fname = file.getAbsolutePath();
-                //String arg = "cmd /C start \"title\" \"" + fname + "\"";
-                //String []args={"cmd","/C start \"title\" \""+file.getAbsolutePath()+"\""};
-                //System.out.println(arg);
-                //ProcessBuilder pb=new ProcessBuilder(args);
-                //pb.start();
-                //proc.waitFor();
-                //String arg="start "+file.getAbsolutePath()+"";
+            //String arg = "cmd /C start \"title\" \"" + fname + "\"";
+            //String []args={"cmd","/C start \"title\" \""+file.getAbsolutePath()+"\""};
+            //System.out.println(arg);
+            //ProcessBuilder pb=new ProcessBuilder(args);
+            //pb.start();
+            //proc.waitFor();
+            //String arg="start "+file.getAbsolutePath()+"";
             if (play) {
                 try {
-
+                    String data = "";
+                    FileInputStream is = new FileInputStream(file);
+                    byte[] b = new byte[(int) file.length()];
+                    is.read(b);
+                    data += new String(b);
+                    if (data.contains("html")) {
+                        JOptionPane.showMessageDialog(null, new JLabel(data));
+                    }
                     AdvancedPlayer p = new AdvancedPlayer(new FileInputStream(file));
                     p.play();
 //                   for(int t=0;t<10000;t++){
@@ -63,6 +74,20 @@ public String language="en";
 
     public void play(File file) {
         try {
+
+            String data = "";
+            FileInputStream is = new FileInputStream(file);
+            byte[] b = new byte[(int) file.length()];
+            is.read(b);
+            data += new String(b);
+//System.out.println(data);
+            data += new String(b);
+            if (data.contains("html")) {
+                JOptionPane.showMessageDialog(null,
+                       "An error ocurred retrieving the file");
+                System.exit(1);
+            }
+
             Player p = new Player(new FileInputStream(file));
             p.play();
         } catch (Exception ex) {
@@ -70,7 +95,7 @@ public String language="en";
         }
     }
 
-     public File getMP3() {
+    public File getMP3() {
         URL u;
         InputStream is = null;
         DataInputStream dis;
@@ -80,7 +105,7 @@ public String language="en";
         try {
             tmpFile = File.createTempFile("jgoogle_tts-" + System.currentTimeMillis(), ".mp3");
             fos = new FileOutputStream(tmpFile);
-            u = new URL("http://translate.google.com/translate_tts?tl="+language+"&q=text");
+            u = new URL("http://translate.google.com/translate_tts?tl=" + language + "&q=text");
             is = u.openStream();         // throws an IOException
             dis = new DataInputStream(new BufferedInputStream(is));
             byte[] buff = new byte[1024];
@@ -105,20 +130,24 @@ public String language="en";
         return tmpFile;
     }
 
-     public File getMP3(InputStream iss) {
+    public File getMP3(InputStream iss) {
         URL u;
         DataInputStream dis;
         FileOutputStream fos;
         String s;
         File tmpFile;
         try {
-            tmpFile = new File(File.listRoots()[0] + "\\temp\\jgoogle_tts-" + System.currentTimeMillis() + ".mp3");
+            //tmpFile = new File(File.listRoots()[0] + "\\temp\\jgoogle_tts-" + System.currentTimeMillis() + ".mp3");
+            tmpFile = File.createTempFile("jgoogle_tts-", ".mp3");
+            tmpFile.deleteOnExit();
+            System.out.println(tmpFile.getAbsolutePath());
             fos = new FileOutputStream(tmpFile);
             dis = new DataInputStream(new BufferedInputStream(iss));
             byte[] buff = new byte[1024];
             int len = 0;
             while ((len = dis.read(buff)) != -1) {
                 fos.write(buff, 0, len);
+                //System.out.print(new String(buff, 0, len));
             }
             try {
                 fos.close();
@@ -151,6 +180,7 @@ public String language="en";
             path = new TextField("", 20);
             thread = new Thread(this);
         }
+
         public File getFile() {
             try {
                 ourSocket = new Socket(address.getText(), 80);
@@ -158,12 +188,14 @@ public String language="en";
                         = new DataInputStream(ourSocket.getInputStream());
                 DataOutputStream outStream //Here too!
                         = new DataOutputStream(ourSocket.getOutputStream());
-                String requestString = "GET /" + path.getText() + " HTTP/1.0\r\n" + "\r\n";
+                String requestString = "GET http://translate.google.com/" + path.getText() + " HTTP/1.0\r\n" + "\r\n";
+                System.out.println(requestString);
                 outStream.writeBytes(requestString);
                 outStream.flush();
                 StringBuffer buff = new StringBuffer();
                 file = new Main().getMP3(inStream);
-              try {
+
+                try {
                     inStream.close();
                 } catch (IOException iOException) {
                 }
@@ -189,6 +221,7 @@ public String language="en";
             return file;
         }
         private File file;
+
         public void run() {
             getFile();
         }
