@@ -12,10 +12,18 @@ package org.ldtwo.jgoogle_tts;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
 import java.util.LinkedList;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.swing.JFileChooser;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
 
 /**
  *
@@ -30,7 +38,7 @@ public final class Frame extends javax.swing.JFrame {
         initComponents();
         init();
 
-        setTitle("JGoogle TTS");
+        setTitle("JGoogle TTS - English");
     }
 
     /** This method is called from within the constructor to
@@ -53,6 +61,8 @@ public final class Frame extends javax.swing.JFrame {
         jMenu3 = new javax.swing.JMenu();
         jMenuItem3 = new javax.swing.JMenuItem();
         lang = new javax.swing.JMenu();
+        jMenu4 = new javax.swing.JMenu();
+        jMenuItem5 = new javax.swing.JMenuItem();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 
@@ -69,7 +79,11 @@ public final class Frame extends javax.swing.JFrame {
         jMenu1.setText("File");
 
         jMenuItem1.setText("Open");
-        jMenuItem1.setEnabled(false);
+        jMenuItem1.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jMenuItem1ActionPerformed(evt);
+            }
+        });
         jMenu1.add(jMenuItem1);
 
         jMenuItem2.setText("Exit");
@@ -100,6 +114,18 @@ public final class Frame extends javax.swing.JFrame {
 
         lang.setText("Language");
         jMenuBar1.add(lang);
+
+        jMenu4.setText("Help");
+
+        jMenuItem5.setText("About");
+        jMenuItem5.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jMenuItem5ActionPerformed(evt);
+            }
+        });
+        jMenu4.add(jMenuItem5);
+
+        jMenuBar1.add(jMenu4);
 
         setJMenuBar(jMenuBar1);
 
@@ -135,6 +161,43 @@ public final class Frame extends javax.swing.JFrame {
         // TODO add your handling code here:
     }//GEN-LAST:event_jMenuItem3ActionPerformed
 
+    private void jMenuItem5ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenuItem5ActionPerformed
+JOptionPane.showMessageDialog(this,
+        "Developed by L. Moore. \n"
+        + "License: GNU GPLv3\n"
+        + "http://code.google.com/p/jgoogletexttospeech");
+    }//GEN-LAST:event_jMenuItem5ActionPerformed
+
+    private void jMenuItem1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenuItem1ActionPerformed
+      BufferedReader br=null;
+        try {
+            File f = null;
+            JFileChooser chooser = new JFileChooser();
+            chooser.showOpenDialog(this);
+            f = chooser.getSelectedFile();
+            if (f == null) {
+                return;
+            }
+            StringBuilder buf=new StringBuilder();
+            br = new BufferedReader(new FileReader(f));
+            while(true){
+                String s=br.readLine();
+                if(s==null)break;
+                buf.append(s);
+            }
+            txt.setText(buf.toString());
+        } catch (Exception ex) {
+            Logger.getLogger(Frame.class.getName()).log(Level.SEVERE, null, ex);
+        } finally {
+            try {
+                br.close();
+            } catch (IOException ex) {
+                Logger.getLogger(Frame.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
+
+    }//GEN-LAST:event_jMenuItem1ActionPerformed
+
     /**
      * @param args the command line arguments
      */
@@ -150,10 +213,12 @@ public final class Frame extends javax.swing.JFrame {
     private javax.swing.JMenu jMenu1;
     private javax.swing.JMenu jMenu2;
     private javax.swing.JMenu jMenu3;
+    private javax.swing.JMenu jMenu4;
     private javax.swing.JMenuBar jMenuBar1;
     private javax.swing.JMenuItem jMenuItem1;
     private javax.swing.JMenuItem jMenuItem2;
     private javax.swing.JMenuItem jMenuItem3;
+    private javax.swing.JMenuItem jMenuItem5;
     private javax.swing.JPanel jPanel1;
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JMenu lang;
@@ -176,30 +241,30 @@ public final class Frame extends javax.swing.JFrame {
     }
     public File getMP3() {
 
-        return new Main(language).getAndPlay("translate.google.com",
+        return new Worker(language).getAndPlay("translate.google.com",
                 format(txt.getText()),
                 false);
     }
 
     public File playMP3() {
 
-        return new Main(language).getAndPlay("translate.google.com",
+        return new Worker(language).getAndPlay("translate.google.com",
                 format(txt.getText()),
                 true);
     }
 
     public void playMP3(File f) {
-        new Main(language).play(f);
+        new Worker(language).play(f);
     }
 
     public File playMP3(String s) {
-        return new Main(language).getAndPlay("translate.google.com",
+        return new Worker(language).getAndPlay("translate.google.com",
                  format(s),
                 true);
     }
 
     public File getMP3(String s) {
-        return new Main(language).getAndPlay("translate.google.com",
+        return new Worker(language).getAndPlay("translate.google.com",
                 format(s),
                 false);
     }

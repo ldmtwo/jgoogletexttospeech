@@ -19,14 +19,14 @@ import javazoom.jl.player.advanced.AdvancedPlayer;
  *
  * @author Larry Moore
  */
-public class Main {
+public class Worker {
 
     public String language = "en";
 
-    public Main() {
+    public Worker() {
     }
 
-    public Main(String language) {
+    public Worker(String language) {
         this.language = language;
     }
 
@@ -67,7 +67,7 @@ public class Main {
             }
             return file;
         } catch (Exception ex) {
-            Logger.getLogger(Main.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(Worker.class.getName()).log(Level.SEVERE, null, ex);
         }
         return null;
     }
@@ -193,7 +193,7 @@ public class Main {
                 outStream.writeBytes(requestString);
                 outStream.flush();
                 StringBuffer buff = new StringBuffer();
-                file = new Main().getMP3(inStream);
+                file = new Worker().getMP3(inStream);
 
                 try {
                     inStream.close();
