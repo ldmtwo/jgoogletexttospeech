@@ -29,22 +29,23 @@ import static javax.sound.sampled.AudioFormat.Encoding.PCM_SIGNED;
  *
  * @author Larry Moore
  */
-public class Worker {
+public class Worker2 {
 
-    final public String language;
+    public String language = "en_gb";
 
-    public Worker() {
-        language = "en";
+    public Worker2() {
     }
 
-    public Worker(String language) {
+    public Worker2(String language) {
         this.language = language;
     }
 
     public File getAndPlay(String query, boolean play) {
         try {
+            //URI uri = new URI("http://translate.google.com/translate_tts?tl=zh-TW&q=你好");
+            //URL u = new URL(uri.toASCIIString());
             SocketClient socket = new SocketClient(query);
-            socket.path.setText("translate_tts?tl=" + language  + "&q=" + query);
+            socket.path.setText("translate_tts?tl=" + language + "&q=" + query);
             socket.address.setText("translate.google.com");
             File file = socket.getFile();
             String fname = "";
@@ -83,27 +84,26 @@ public class Worker {
             }
             return file;
         } catch (Exception ex) {
-            Logger.getLogger(Worker.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(Worker2.class.getName()).log(Level.SEVERE, null, ex);
         }
         return null;
     }
-    byte[] tmpBuffer = new byte[4096];
 
     public void play(File file) {
         try {
 
-//            String data = "";
-//            FileInputStream is = new FileInputStream(file);
-//            int len;
-//            while((len=is.read(tmpBuffer))>=0)
-//                data += new String(tmpBuffer,0,len);
-////System.out.println(data);
-////            data += new String(tmpBuffer);
-//            if (data.contains("html")) {
-//                JOptionPane.showMessageDialog(null,
-//                        "An error ocurred retrieving the file");
-//                System.exit(1);
-//            }
+            String data = "";
+            FileInputStream is = new FileInputStream(file);
+            byte[] b = new byte[(int) file.length()];
+            is.read(b);
+            data += new String(b);
+//System.out.println(data);
+            data += new String(b);
+            if (data.contains("html")) {
+                JOptionPane.showMessageDialog(null,
+                        "An error ocurred retrieving the file");
+                System.exit(1);
+            }
 
 
             AudioInputStream in = AudioSystem.getAudioInputStream(file);
@@ -132,15 +132,16 @@ public class Worker {
     private void rawplay(AudioFormat targetFormat,
             AudioInputStream ais)
             throws IOException, LineUnavailableException {
+        byte[] data = new byte[4096];
         SourceDataLine line = getLine(targetFormat);
         if (line != null) {
             // Start
             line.start();
             int nBytesRead = 0, nBytesWritten = 0;
             while (nBytesRead != -1) {
-                nBytesRead = ais.read(tmpBuffer, 0, tmpBuffer.length);
+                nBytesRead = ais.read(data, 0, data.length);
                 if (nBytesRead != -1) {
-                    nBytesWritten = line.write(tmpBuffer, 0, nBytesRead);
+                    nBytesWritten = line.write(data, 0, nBytesRead);
                 }
             }
             // Stop
@@ -194,24 +195,24 @@ public class Worker {
         return tmpFile;
     }
 
-     public File writeToFile(InputStream iss, String fileName) {
+    static public File writeToFile(InputStream iss, String fileName) {
         URL u;
         DataInputStream dis;
         FileOutputStream fos;
         String s;
         File tmpFile;
         try {
-            tmpFile = new File("CACHE\\"+language);
+            tmpFile = new File("CACHE");
             if (!tmpFile.exists()) {
                 tmpFile.mkdirs();
             }
-            tmpFile = new File("CACHE\\" +language + "\\"+ fileName);
-//            if (tmpFile.exists()) {
-//                return tmpFile;
-//            }
+            tmpFile = new File("CACHE\\" + fileName);
+            if (tmpFile.exists() && tmpFile.length()>0) {
+                return tmpFile;
+            }
 
             //tmpFile = File.createTempFile("jgoogle_tts-", ".mp3");
-//            tmpFile.deleteOnExit();
+            //tmpFile.deleteOnExit();
             System.out.println(tmpFile.getAbsolutePath());
             fos = new FileOutputStream(tmpFile);
             dis = new DataInputStream(new BufferedInputStream(iss));
@@ -219,7 +220,7 @@ public class Worker {
             int len = 0;
             while ((len = dis.read(buff)) != -1) {
                 fos.write(buff, 0, len);
-                //System.out.print(new String(buff, 0, len));
+                System.out.print(new String(buff, 0, len));
             }
             try {
                 fos.close();
@@ -240,16 +241,16 @@ public class Worker {
         return null;
     }
 
-     private class SocketClient implements Runnable {
+    static private class SocketClient implements Runnable {
 
         public TextField address, path;
         Thread thread;
         Socket ourSocket;
-        File tmpFile;
 
-        public SocketClient(String q) {
-            new File("CACHE\\" + language  ).mkdirs();
-            tmpFile = new File("CACHE\\" + language + "\\" + q + ".mp3");
+
+        File tmpFile;
+        private SocketClient(String q) {
+            tmpFile = new File("CACHE\\" + q + ".mp3");
             address = new TextField("", 20);
             path = new TextField("", 20);
             thread = new Thread(this);
@@ -257,27 +258,20 @@ public class Worker {
 
         public File getFile() {
             try {
-                if (tmpFile.exists() && tmpFile.length() > 1600) {
+                if (tmpFile.exists()) {
                     return tmpFile;
                 }
-
+                
                 ourSocket = new Socket(address.getText(), 80);
-                InputStream inStream 
+                DataInputStream inStream //Notice how we kill a few birds with one stone.
                         = new DataInputStream(ourSocket.getInputStream());
-                DataOutputStream outStream 
+                DataOutputStream outStream //Here too!
                         = new DataOutputStream(ourSocket.getOutputStream());
-                URI uri = new URI("http://translate.google.com/"+ path.getText().trim().replace(" ", "+"));
-
-//                URL u = new URL(uri.toASCIIString());
-               
-//                inStream=u.openStream();
-                String requestString = "GET http://translate.google.com/" + path.getText() + " HTTP/1.0\r\n" + "\r\n";
-                requestString ="GET "+ uri.toASCIIString() + " HTTP/1.0\r\n" + "\r\n";
-                System.out.println(uri.toASCIIString());
+                String requestString = "GET http://translate.google.com/" + path.getText() + " HTTP/1.0";
                 System.out.println(requestString);
                 outStream.writeBytes(requestString);
                 outStream.flush();
-
+                
                 file = writeToFile(inStream, tmpFile.getName());
 
                 try {
@@ -308,7 +302,7 @@ public class Worker {
         private File file;
 
         public void run() {
-            getFile();
+            file = getFile();
         }
     }
 }
