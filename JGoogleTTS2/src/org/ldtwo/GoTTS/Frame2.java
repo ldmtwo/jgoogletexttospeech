@@ -82,14 +82,19 @@ public final class Frame2 extends javax.swing.JFrame {
 
     public void refreshFavorites() {
         favorites.removeAll();
-        File[] files = new File("CACHE\\").listFiles();
-        for (final File f : files) {
-            if (f.isDirectory()) {
-                JMenuItem item = newLanguageMenuItem(f.getName());
-                if (item != null) {
-                    favorites.add(item);
+        new File("CACHE\\").mkdirs();
+        try {
+            System.out.println(new File("CACHE\\").getAbsolutePath());
+            File[] files = new File("CACHE\\").listFiles();
+            for (final File f : files) {
+                if (f.isDirectory()) {
+                    JMenuItem item = newLanguageMenuItem(f.getName());
+                    if (item != null) {
+                        favorites.add(item);
+                    }
                 }
             }
+        } catch (Exception e) {
         }
     }
 
@@ -101,25 +106,24 @@ public final class Frame2 extends javax.swing.JFrame {
         initComponents();
         init();
         setSize(1000, 600);
-        addComponentListener(new  ComponentAdapter() {
+        addComponentListener(new ComponentAdapter() {
 
             @Override
             public void componentResized(ComponentEvent e) {
-                
+
                 super.componentResized(e); //To change body of generated methods, choose Tools | Templates.
-                tabPane.setPreferredSize(new Dimension(200,0));
-                        
+                tabPane.setPreferredSize(new Dimension(200, 0));
+
             }
 
         });
         Dimension dim = Toolkit.getDefaultToolkit().getScreenSize();
-this.setLocation(dim.width/2-this.getSize().width/2, dim.height/2-this.getSize().height/2);
+        this.setLocation(dim.width / 2 - this.getSize().width / 2, dim.height / 2 - this.getSize().height / 2);
         tabPane.setTabPlacement(JTabbedPane.BOTTOM);
         ths.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
         refreshTree();
         refreshFavorites();
         setTitle("JGoogle TTS - English");
-//        addPanel();
         openFile(new File("default text.txt"));
         try {
             String[] files = new Scanner(new File(".lastOpened.txt")).useDelimiter("\\A").next().split("\n");
@@ -129,6 +133,9 @@ this.setLocation(dim.width/2-this.getSize().width/2, dim.height/2-this.getSize()
         } catch (Exception e) {
             System.err.println("lastopened is missing or corrupted!");
 //            e.printStackTrace();
+        }
+        if (1 > tabPane.getTabCount()) {
+            addPanel();
         }
         JMenuItem item = newLanguageMenuItem("English (GB)");
         if (item != null) {
@@ -148,9 +155,9 @@ this.setLocation(dim.width/2-this.getSize().width/2, dim.height/2-this.getSize()
                                 continue;
                             }
                         }
-                        String name=p.file==null?p.tabName:p.file.getName();
+                        String name = p.file == null ? p.tabName : p.file.getName();
                         if (JOptionPane.showConfirmDialog(null,
-                                "Would you like to save this? "+ name) == JOptionPane.YES_OPTION) {
+                                "Would you like to save this? " + name) == JOptionPane.YES_OPTION) {
                             //save file
                             saveFile(p);
                         }
@@ -541,8 +548,8 @@ this.setLocation(dim.width/2-this.getSize().width/2, dim.height/2-this.getSize()
         updateTabTitle("French/Francais", getActiveTab(), tabPane.getSelectedIndex());
         addPanel();
         getActiveTab().txt.setText("Hola, ¿cómo estás hoy? \n"
-                + "¿Has oído el caso de ese fugitivo que secuestró un autobús de turistas japoneses?\n" +
-"La policía tiene 5.000 fotos suyas.");
+                + "¿Has oído el caso de ese fugitivo que secuestró un autobús de turistas japoneses?\n"
+                + "La policía tiene 5.000 fotos suyas.");
         getActiveTab().la_ = "es";
         updateTabTitle("Spanish/Espanol", getActiveTab(), tabPane.getSelectedIndex());
         addPanel();
@@ -554,15 +561,19 @@ this.setLocation(dim.width/2-this.getSize().width/2, dim.height/2-this.getSize()
         getActiveTab().la_ = "de";
         updateTabTitle("German/Deutch", getActiveTab(), tabPane.getSelectedIndex());
         addPanel();
-        getActiveTab().txt.setText("With his windows down and his system up\n" +
-            "So, will the real Shady please stand up?\n" +
-            "'Cause I'm Slim Shady, yes I'm the real Shady\n" +
-            "All you other Slim Shadys are just imitating\n" +
-            "So won't the real Slim Shady please stand up,\n" +
-            "Please stand up, please stand up?\n" +
-            "Alrighty? You can sit down now. That was rhetorical.\n\nYou can play this "
-                + "again by simultaniously pressing CONTROL and P\n "
-                + "or by choosing PLAY from the COMMAND menu.");
+        getActiveTab().txt.setText("With his windows down and his system up\n"
+                + "So, will the real Shady please stand up?\n"
+                + "'Cause I'm Slim Shady, yes I'm the real Shady of course!\n"
+                + "All you other Slim Shadys are just imitating\n"
+                + "So won't the real Slim Shady please stand up,\n"
+                + "Please stand up, please stand up?\n"
+                + "Alrighty? You can sit down now. That was rhetorical.\n"
+                + "\n"
+                + "You can play this again by simultaniously pressing CONTROL and P\n"
+                + " or by choosing PLAY from the COMMAND menu.\n"
+                + "\n"
+                + "If you want to hear an American or Australian voice,\n"
+                + "you may do so in the language menu.");
         getActiveTab().la_ = "en_gb";
         updateTabTitle("English/UK Hood", getActiveTab(), tabPane.getSelectedIndex());
         playMP3s();
@@ -577,15 +588,15 @@ this.setLocation(dim.width/2-this.getSize().width/2, dim.height/2-this.getSize()
             public void run() {
                 try {
                     try {
-    for (LookAndFeelInfo info : UIManager.getInstalledLookAndFeels()) {
-        if ("Nimbus".equals(info.getName())) {
-            UIManager.setLookAndFeel(info.getClassName());
-            break;
-        }
-    }
-} catch (Exception e) {
+                        for (LookAndFeelInfo info : UIManager.getInstalledLookAndFeels()) {
+                            if ("Nimbus".equals(info.getName())) {
+                                UIManager.setLookAndFeel(info.getClassName());
+                                break;
+                            }
+                        }
+                    } catch (Exception e) {
     // If Nimbus is not available, you can set the GUI to another look and feel.
-}
+                    }
                     new Frame2().setVisible(true);
                 } catch (Exception ex) {
                     Logger.getLogger(Frame2.class.getName()).log(Level.SEVERE, null, ex);
@@ -900,9 +911,15 @@ this.setLocation(dim.width/2-this.getSize().width/2, dim.height/2-this.getSize()
         };
 
         try {
-            FileTree tree = new FileTree(new File("CACHE\\"), listener);
+            FileTree tree;
+            if (!new File("CACHE\\").exists()) {
+                tree = new FileTree(new File("."), listener);
+            } else {
+                tree = new FileTree(new File("CACHE\\"), listener);
+            }
             jScrollPane3.getViewport().add(tree);
-        } catch (Exception e) {e.printStackTrace();
+        } catch (Exception e) {
+            e.printStackTrace();
         }
         //tree.addMouseListener(listener);
     }

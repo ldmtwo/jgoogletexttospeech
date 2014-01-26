@@ -61,6 +61,7 @@ public class FileTree extends JPanel {
         }
 //        Vector ol = new Vector();
 //        String[] tmp = dir.list();
+        System.out.println(dir);
         File[] files=dir.listFiles();
         List<File> list=Arrays.asList(files);
 //        for (int i = 0; i < tmp.length; i++) {
