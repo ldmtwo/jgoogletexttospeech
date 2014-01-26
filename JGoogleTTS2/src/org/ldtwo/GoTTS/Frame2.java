@@ -148,8 +148,9 @@ this.setLocation(dim.width/2-this.getSize().width/2, dim.height/2-this.getSize()
                                 continue;
                             }
                         }
+                        String name=p.file==null?p.tabName:p.file.getName();
                         if (JOptionPane.showConfirmDialog(null,
-                                "Would you like to save this?") == JOptionPane.YES_OPTION) {
+                                "Would you like to save this? "+ name) == JOptionPane.YES_OPTION) {
                             //save file
                             saveFile(p);
                         }
@@ -559,7 +560,9 @@ this.setLocation(dim.width/2-this.getSize().width/2, dim.height/2-this.getSize()
             "All you other Slim Shadys are just imitating\n" +
             "So won't the real Slim Shady please stand up,\n" +
             "Please stand up, please stand up?\n" +
-            "Alrighty? You can sit down now. That was rhetorical.");
+            "Alrighty? You can sit down now. That was rhetorical.\n\nYou can play this "
+                + "again by simultaniously pressing CONTROL and P\n "
+                + "or by choosing PLAY from the COMMAND menu.");
         getActiveTab().la_ = "en_gb";
         updateTabTitle("English/UK Hood", getActiveTab(), tabPane.getSelectedIndex());
         playMP3s();
@@ -896,8 +899,11 @@ this.setLocation(dim.width/2-this.getSize().width/2, dim.height/2-this.getSize()
             }
         };
 
-        FileTree tree = new FileTree(new File("CACHE\\"), listener);
-        jScrollPane3.getViewport().add(tree);
+        try {
+            FileTree tree = new FileTree(new File("CACHE\\"), listener);
+            jScrollPane3.getViewport().add(tree);
+        } catch (Exception e) {e.printStackTrace();
+        }
         //tree.addMouseListener(listener);
     }
 
