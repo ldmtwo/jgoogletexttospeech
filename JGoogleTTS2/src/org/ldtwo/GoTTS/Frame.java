@@ -8,7 +8,7 @@
  *
  * Created on Sep 6, 2010, 11:38:07 PM
  */
-package org.ldtwo.jgoogle_tts;
+package org.ldtwo.GoTTS;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;

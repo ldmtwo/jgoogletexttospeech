@@ -15,6 +15,7 @@ import java.util.LinkedList;
  */
 public class G {
     
+    
     public static LinkedList<EditorPanel> tabList=new LinkedList<EditorPanel>();
     
      public static final String DELIM="[\\n]",ANTIDELIM="[^\\n]";
@@ -146,10 +147,9 @@ public class G {
         "yi	Yiddish",
         "yo	Yoruba",
         "zu	Zulu"};
-    public static String language = "en_gb";
     static final HashMap<String, String> la_language = new HashMap<String, String>();
     static final HashMap<String, String> language_la = new HashMap<String, String>();
-    static int activeTabNum=0;
+    //static int activeTabNum=0;
 
     static {
         String[] arr;

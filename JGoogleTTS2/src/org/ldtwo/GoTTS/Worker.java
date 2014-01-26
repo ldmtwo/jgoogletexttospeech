@@ -2,7 +2,7 @@
  * To change this template, choose Tools | Templates
  * and open the template in the editor.
  */
-package org.ldtwo.jgoogle_tts;
+package org.ldtwo.GoTTS;
 
 import java.awt.*;
 import java.util.logging.Level;

@@ -24,7 +24,7 @@
         <Property name="columns" type="int" value="20"/>
         <Property name="lineWrap" type="boolean" value="true"/>
         <Property name="rows" type="int" value="5"/>
-        <Property name="text" type="java.lang.String" value="Thank you for trying JGoogle TTS aka GoTTS.&#xa;&#xa;http://code.google.com/p/jgoogletexttospeech/&#xa;&#xa;Hello, how are you today?&#xa;Bonjour, comment allez-vous aujourd&apos;hui?&#xa;Hola, &#xbf;c&#xf3;mo est&#xe1;s hoy?&#xa;Hallo, wie geht es Ihnen heute?&#xa;Hej, hur m&#xe5;r du idag?&#xa;&#x4f60;&#x597d;&#xa;&#xa;&#xa;&#xa;"/>
+        <Property name="text" type="java.lang.String" value="Thank you for trying JGoogle TTS a.k.a. GoTTS.&#xa;&#xa;http://code.google.com/p/jgoogletexttospeech/&#xa;&#xa;Hello, how are you today?&#xa;Bonjour, comment allez-vous aujourd&apos;hui?&#xa;Hola, &#xbf;c&#xf3;mo est&#xe1;s hoy?&#xa;Hallo, wie geht es Ihnen heute?&#xa;Hej, hur m&#xe5;r du idag?&#xa;&#x4f60;&#x597d;&#xa;&#xa;&#xa;&#xa;"/>
       </Properties>
       <AuxValues>
         <AuxValue name="JavaCodeGenerator_VariableModifier" type="java.lang.Integer" value="1"/>

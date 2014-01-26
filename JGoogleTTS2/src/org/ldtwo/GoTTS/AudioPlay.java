@@ -1,4 +1,5 @@
-package org.ldtwo.jgoogle_tts;
+
+package org.ldtwo.GoTTS;
 
 import javax.media.*;
 

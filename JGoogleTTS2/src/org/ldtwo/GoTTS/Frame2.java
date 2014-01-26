@@ -18,7 +18,6 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.logging.Level;
@@ -34,7 +33,7 @@ import javax.swing.JOptionPane;
 import javax.swing.event.TreeSelectionEvent;
 import javax.swing.event.TreeSelectionListener;
 import static org.ldtwo.GoTTS.G.*;
-import org.ldtwo.GoTTS.*;
+
 /**
  *
  * @author Larry Moore
@@ -75,14 +74,46 @@ public final class Frame2 extends javax.swing.JFrame {
         if (G.tabList.size() < 1) {
             addPanel();
         }
-        pan = G.tabList.get(G.activeTabNum);
+        pan = G.tabList.get(tabPane.getSelectedIndex());
         return pan;
     }
 
     public void addPanel() {
         EditorPanel pan = new EditorPanel();
         tabPane.add(pan);
+        String name = G.la_language.get(pan.la_);
+        int index = tabPane.getTabCount() - 1;
+        updateTabTitle(name, pan, index);
         G.tabList.addLast(pan);
+    }
+
+    private void updateTabTitle(String name, EditorPanel pan, int index) {
+        boolean found = false;
+        for (EditorPanel p : G.tabList) {
+            if (p.tabName.equals(name)) {
+                found = true;
+                break;
+            }
+        }
+
+        if (found) {
+            int i = 2;
+            String tryName = null;
+            while (found) {
+                tryName = name + " (" + i++ + ")";
+                found = false;
+                for (EditorPanel p : G.tabList) {
+                    if (p.tabName.equals(tryName)) {
+                        found = true;
+                        break;
+                    }
+                }
+            }
+            name = tryName;
+        }
+        pan.tabName = name;
+        tabPane.setTitleAt(index, name);
+        tabPane.setSelectedIndex(index);
     }
 
     /**
@@ -112,7 +143,7 @@ public final class Frame2 extends javax.swing.JFrame {
         jMenuBar1 = new javax.swing.JMenuBar();
         jMenu1 = new javax.swing.JMenu();
         jMenuItem1 = new javax.swing.JMenuItem();
-        jCheckBoxMenuItem1 = new javax.swing.JCheckBoxMenuItem();
+        newTabMenuItem = new javax.swing.JMenuItem();
         jMenuItem2 = new javax.swing.JMenuItem();
         jMenu2 = new javax.swing.JMenu();
         jMenu3 = new javax.swing.JMenu();
@@ -123,7 +154,6 @@ public final class Frame2 extends javax.swing.JFrame {
         jMenuItem7 = new javax.swing.JMenuItem();
         jMenu4 = new javax.swing.JMenu();
         jMenuItem5 = new javax.swing.JMenuItem();
-        nowPlaying = new javax.swing.JMenu();
 
         jMenu5.setText("File");
         jMenuBar2.add(jMenu5);
@@ -178,15 +208,14 @@ public final class Frame2 extends javax.swing.JFrame {
         });
         jMenu1.add(jMenuItem1);
 
-        jCheckBoxMenuItem1.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_N, java.awt.event.InputEvent.CTRL_MASK));
-        jCheckBoxMenuItem1.setSelected(true);
-        jCheckBoxMenuItem1.setText("New Tab");
-        jCheckBoxMenuItem1.addActionListener(new java.awt.event.ActionListener() {
+        newTabMenuItem.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_N, java.awt.event.InputEvent.CTRL_MASK));
+        newTabMenuItem.setText("New Tab");
+        newTabMenuItem.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                jCheckBoxMenuItem1ActionPerformed(evt);
+                newTabMenuItemActionPerformed(evt);
             }
         });
-        jMenu1.add(jCheckBoxMenuItem1);
+        jMenu1.add(newTabMenuItem);
 
         jMenuItem2.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_Q, java.awt.event.InputEvent.CTRL_MASK));
         jMenuItem2.setText("Exit");
@@ -246,9 +275,6 @@ public final class Frame2 extends javax.swing.JFrame {
         jMenu4.add(jMenuItem5);
 
         jMenuBar1.add(jMenu4);
-
-        nowPlaying.setText("[   ]");
-        jMenuBar1.add(nowPlaying);
 
         setJMenuBar(jMenuBar1);
 
@@ -333,7 +359,7 @@ public final class Frame2 extends javax.swing.JFrame {
             java.awt.EventQueue.invokeLater(new Runnable() {
                 @Override
                 public void run() {
-                    new Worker(G.language).play(new File(((JList) evt.getSource()).getSelectedValue().toString()));
+                    new Worker(getActiveTab().la_).play(new File(((JList) evt.getSource()).getSelectedValue().toString()));
 
                     refreshFavorites();
                 }
@@ -350,11 +376,12 @@ public final class Frame2 extends javax.swing.JFrame {
         // TODO add your handling code here:
     }//GEN-LAST:event_jMenuItem6ActionPerformed
 
-    private void jCheckBoxMenuItem1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jCheckBoxMenuItem1ActionPerformed
+    private void newTabMenuItemActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_newTabMenuItemActionPerformed
 //CTRL+N = new tab
+        addPanel();
 
 
-    }//GEN-LAST:event_jCheckBoxMenuItem1ActionPerformed
+    }//GEN-LAST:event_newTabMenuItemActionPerformed
 
     /**
      * @param args the command line arguments
@@ -368,7 +395,6 @@ public final class Frame2 extends javax.swing.JFrame {
     }
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JMenu favorites;
-    private javax.swing.JCheckBoxMenuItem jCheckBoxMenuItem1;
     private javax.swing.JMenu jMenu1;
     private javax.swing.JMenu jMenu2;
     private javax.swing.JMenu jMenu3;
@@ -395,7 +421,7 @@ public final class Frame2 extends javax.swing.JFrame {
     private javax.swing.JTree jTree1;
     private javax.swing.JMenu lang;
     private javax.swing.JList lst;
-    private javax.swing.JMenu nowPlaying;
+    private javax.swing.JMenuItem newTabMenuItem;
     private javax.swing.JTabbedPane tabPane;
     // End of variables declaration//GEN-END:variables
 
@@ -459,16 +485,16 @@ public final class Frame2 extends javax.swing.JFrame {
 
     public void playMP3(File f) {
         if (!f.isDirectory() && f.getName().toLowerCase().endsWith(".mp3")) {
-            new Worker(language).play(f);
+            new Worker(getActiveTab().la_).play(f);
         }
     }
 
     public File playMP3(String s) {
-        return new Worker(language).getAndPlay((s), true);
+        return new Worker(getActiveTab().la_).getAndPlay((s), true);
     }
 
     public File getMP3(String s) {
-        return new Worker(language).getAndPlay((s), false);
+        return new Worker(getActiveTab().la_).getAndPlay((s), false);
     }
 
     public void playMP3s() {
@@ -505,6 +531,7 @@ public final class Frame2 extends javax.swing.JFrame {
         lst.setModel(listModel);
         final boolean[] playing = {true};
         Runnable runnable = new Runnable() {
+            @Override
             public void run() {
                 try {
                     Thread.sleep(500);//delay initial playing
@@ -634,11 +661,12 @@ public final class Frame2 extends javax.swing.JFrame {
             subMenus[Math.min(
                     i++ * subMenus.length / langs.length,
                     subMenus.length - 1)].add(item);
+
         }
     }
 
     void setLanguage(String language) {
-        G.language = language;
+        getActiveTab().la_ = language;
     }
 
     private void refreshTree() {
@@ -684,7 +712,12 @@ public final class Frame2 extends javax.swing.JFrame {
         item.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 setLanguage(la);
-                setTitle("JGoogle TTS - " + la_language.get(la));
+                String name = la_language.get(la);
+                setTitle("JGoogle TTS - " + name);
+                EditorPanel pan = getActiveTab();
+                pan.la_ = la;
+
+                updateTabTitle(name, pan, tabPane.getSelectedIndex());
             }
         });
         return item;

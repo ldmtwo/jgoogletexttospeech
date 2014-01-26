@@ -11,7 +11,8 @@ package org.ldtwo.GoTTS;
  * @author ldtwo
  */
 public class EditorPanel extends javax.swing.JPanel {
-
+public String tabName="English";
+    public  String la_ = "en_gb";
     /**
      * Creates new form EditorPanel
      */
@@ -35,7 +36,7 @@ public class EditorPanel extends javax.swing.JPanel {
         txt.setColumns(20);
         txt.setLineWrap(true);
         txt.setRows(5);
-        txt.setText("Thank you for trying JGoogle TTS aka GoTTS.\n\nhttp://code.google.com/p/jgoogletexttospeech/\n\nHello, how are you today?\nBonjour, comment allez-vous aujourd'hui?\nHola, ¿cómo estás hoy?\nHallo, wie geht es Ihnen heute?\nHej, hur mår du idag?\n你好\n\n\n\n");
+        txt.setText("Thank you for trying JGoogle TTS a.k.a. GoTTS.\n\nhttp://code.google.com/p/jgoogletexttospeech/\n\nHello, how are you today?\nBonjour, comment allez-vous aujourd'hui?\nHola, ¿cómo estás hoy?\nHallo, wie geht es Ihnen heute?\nHej, hur mår du idag?\n你好\n\n\n\n");
         add(txt);
     }// </editor-fold>//GEN-END:initComponents
 
