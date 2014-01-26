@@ -9,21 +9,17 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.io.*;
 import java.net.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import javax.sound.sampled.*;
-import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
-import javax.sound.sampled.DataLine.Info;
 import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.SourceDataLine;
-import javax.sound.sampled.UnsupportedAudioFileException;
-
-import static javax.sound.sampled.AudioSystem.getAudioInputStream;
-import static javax.sound.sampled.AudioFormat.Encoding.PCM_SIGNED;
 
 /**
  *
@@ -43,12 +39,23 @@ public class Worker {
 
     public File getAndPlay(String query, boolean play) {
         try {
-            SocketClient socket = new SocketClient(query);
-            socket.path.setText("translate_tts?tl=" + language  + "&q=" + query);
+            System.out.printf("getAndPlay: query=%s\n", query);
+            query = query.replaceAll("[?]", " ").trim();
+            while (query.contains("  ")) {
+                query = query.replace("  ", " ");
+            }
+            String fname = query;
+            if (query.contains("\t")) {
+                fname = query.replaceAll("[\\s]", " ").trim();
+                String[] arr = query.split("\t");
+                query = arr[0];
+            System.out.printf("getAndPlay: query=%s; file=%s\n", query, fname);
+            }
+            SocketClient socket = new SocketClient(fname);
+            socket.path.setText("translate_tts?ie=UTF-8&tl=" + language + "&q=" + URLEncoder.encode(query, "UTF-8"));
             socket.address.setText("translate.google.com");
             File file = socket.getFile();
-            String fname = "";
-            fname = file.getAbsolutePath();
+//            fname = file.getAbsolutePath();
             //String arg = "cmd /C start \"title\" \"" + fname + "\"";
             //String []args={"cmd","/C start \"title\" \""+file.getAbsolutePath()+"\""};
             //System.out.println(arg);
@@ -193,19 +200,20 @@ public class Worker {
         } // end of 'finally' clause
         return tmpFile;
     }
+    byte[] buff = new byte[1024 * 8];
 
-     public File writeToFile(InputStream iss, String fileName) {
+    public File writeToFile(InputStream iss, String fileName) {
         URL u;
         DataInputStream dis;
         FileOutputStream fos;
         String s;
         File tmpFile;
         try {
-            tmpFile = new File("CACHE\\"+language);
+            tmpFile = new File("CACHE\\" + language);
             if (!tmpFile.exists()) {
                 tmpFile.mkdirs();
             }
-            tmpFile = new File("CACHE\\" +language + "\\"+ fileName);
+            tmpFile = new File("CACHE\\" + language + "\\" + fileName);
 //            if (tmpFile.exists()) {
 //                return tmpFile;
 //            }
@@ -214,21 +222,44 @@ public class Worker {
 //            tmpFile.deleteOnExit();
             System.out.println(tmpFile.getAbsolutePath());
             fos = new FileOutputStream(tmpFile);
-            dis = new DataInputStream(new BufferedInputStream(iss));
-            byte[] buff = new byte[1024];
-            int len = 0;
-            while ((len = dis.read(buff)) != -1) {
-                fos.write(buff, 0, len);
-                //System.out.print(new String(buff, 0, len));
+//            dis = new DataInputStream(new BufferedInputStream(iss, 512));
+//            BufferedReader br = new BufferedReader(new InputStreamReader(new DataInputStream(iss)));
+//            String header = "";
+//            String line;
+//            boolean inHeader = true;
+//            int maxLoops = 10000;
+            int len;
+            try {
+//                while ((line = br.readLine()) != null&&maxLoops-->0) {
+//                    System.out.println("> i="+(maxLoops-10000));
+//                    if (inHeader) {
+//                        header += line + "\r\n";
+//                        if (line.length() < 1) {
+//                            inHeader = false;
+//                        }
+//                    } else {
+//                        fos.write(line.getBytes());
+//                    }
+//                    //System.out.print(new String(buff, 0, len));
+//                }
+
+                while ((len = iss.read(buff)) >= 0) {
+                    fos.write(buff, 0, len);
+                }
+//                if (maxLoops < 1) {
+//                    throw new Exception("ERROR: INF LOOP DETECTED!");
+//                }
+            } catch (Exception e) {
+                e.printStackTrace();
             }
             try {
                 fos.close();
             } catch (IOException iOException) {
             }
-            try {
-                dis.close();
-            } catch (IOException iOException) {
-            }
+//            try {
+//                br.close();
+//            } catch (IOException iOException) {
+//            }
             if (tmpFile == null) {
                 System.out.println("1getMP3==null");
             }
@@ -240,16 +271,16 @@ public class Worker {
         return null;
     }
 
-     private class SocketClient implements Runnable {
+    private class SocketClient implements Runnable {
 
         public TextField address, path;
         Thread thread;
         Socket ourSocket;
         File tmpFile;
 
-        public SocketClient(String q) {
-            new File("CACHE\\" + language  ).mkdirs();
-            tmpFile = new File("CACHE\\" + language + "\\" + q + ".mp3");
+        public SocketClient(String fname) {
+            new File("CACHE\\" + language).mkdirs();
+            tmpFile = new File("CACHE\\" + language + "\\" + fname + ".mp3");
             address = new TextField("", 20);
             path = new TextField("", 20);
             thread = new Thread(this);
@@ -262,23 +293,45 @@ public class Worker {
                 }
 
                 ourSocket = new Socket(address.getText(), 80);
-                InputStream inStream 
-                        = new DataInputStream(ourSocket.getInputStream());
-                DataOutputStream outStream 
-                        = new DataOutputStream(ourSocket.getOutputStream());
-                URI uri = new URI("http://translate.google.com/"+ path.getText().trim().replace(" ", "+"));
+                InputStream inStream = new DataInputStream(ourSocket.getInputStream());
+                DataOutputStream outStream = new DataOutputStream(ourSocket.getOutputStream());
+                System.out.println("1)   http://translate.google.com/" + path.getText());
+//                URI uri = new URI("http://translate.google.com/"+ path.getText().trim().replace(" ", "+"));
+//
+////                URL u = new URL(uri.toASCIIString());
+//               
+////                inStream=u.openStream();
+                String requestString;
+//              URL  url = new URL("http://translate.google.com/"+ path.getText());
+//String context = url.getProtocol();
+//String hostname = url.getHost();
+//String thePath = path.getText().trim();
+//int port = 80;
+//thePath = thePath.replaceAll("(^/|/$)", ""); // removes beginning/end slash
+//String encodedPath = URLEncoder.encode(thePath, "UTF-8"); // encodes unicode characters
+//encodedPath = encodedPath.replace("+", "%20"); // change + to %20 (space)
+//encodedPath = encodedPath.replace("%2F", "/"); // change %2F back to slash
+//requestString = context + "://" + hostname + ":" + port + "/" + encodedPath;
 
-//                URL u = new URL(uri.toASCIIString());
-               
-//                inStream=u.openStream();
-                String requestString = "GET http://translate.google.com/" + path.getText() + " HTTP/1.0\r\n" + "\r\n";
-                requestString ="GET "+ uri.toASCIIString() + " HTTP/1.0\r\n" + "\r\n";
-                System.out.println(uri.toASCIIString());
-                System.out.println(requestString);
+
+
+
+
+
+                requestString = "GET http://translate.google.com/" + path.getText() + " HTTP/1.0\r\n"
+                        + "User-Agent: Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/34.0.1779.2 Safari/537.36\r\n"
+                        + "Accept: audio/mpeg\r\n"
+                        + "\r\n";
+//                requestString ="GET "+ uri.toASCIIString() + " HTTP/1.0\r\n" + "\r\n";
+//                System.out.println(uri.toASCIIString());
+                System.out.println("2)    " + requestString);
                 outStream.writeBytes(requestString);
                 outStream.flush();
 
                 file = writeToFile(inStream, tmpFile.getName());
+                if (file.length() < 2000) {
+                    file.deleteOnExit();
+                }
 
                 try {
                     inStream.close();

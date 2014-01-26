@@ -54,7 +54,7 @@ public class FileTree extends JPanel {
      */
     DefaultMutableTreeNode addNodes(DefaultMutableTreeNode curTop, File dir) {
         String curPath = dir.getPath();
-        DefaultMutableTreeNode curDir = new DefaultMutableTreeNode(dir.getName());
+        DefaultMutableTreeNode curDir = new DefaultMutableTreeNode(dir.getName(),true);
         if (curTop != null) { // should only be null at root
             curTop.add(curDir);
         }
@@ -88,7 +88,7 @@ public class FileTree extends JPanel {
         }
         // Pass two: for files.
         for (int fnum = 0; fnum < files.length; fnum++) {
-            if(!files[fnum].isDirectory())
+            if(!files[fnum].isDirectory()&&files[fnum].getName().toLowerCase().endsWith(".mp3"))
             curDir.add(new DefaultMutableTreeNode(files[fnum].getName()));
         }
         return curDir;

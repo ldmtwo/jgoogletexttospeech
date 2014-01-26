@@ -10,20 +10,14 @@ import java.util.logging.Logger;
 import java.io.*;
 import java.net.*;
 import javax.sound.sampled.*;
-import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
-import javax.sound.sampled.DataLine.Info;
 import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.SourceDataLine;
-import javax.sound.sampled.UnsupportedAudioFileException;
-
-import static javax.sound.sampled.AudioSystem.getAudioInputStream;
-import static javax.sound.sampled.AudioFormat.Encoding.PCM_SIGNED;
 
 /**
  *

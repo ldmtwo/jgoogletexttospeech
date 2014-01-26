@@ -11,6 +11,7 @@
 package org.ldtwo.jgoogle_tts;
 
 import java.awt.HeadlessException;
+import java.awt.MouseInfo;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.BufferedReader;
@@ -18,6 +19,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.logging.Level;
@@ -30,7 +32,6 @@ import javax.swing.JList;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
-import javax.swing.JTree;
 import javax.swing.event.TreeSelectionEvent;
 import javax.swing.event.TreeSelectionListener;
 
@@ -39,7 +40,8 @@ import javax.swing.event.TreeSelectionListener;
  * @author Larry Moore
  */
 public final class Frame2 extends javax.swing.JFrame {
-
+    public static final String DELIM="[\\n]",ANTIDELIM="[^\\n]";
+    public static final String DELIM2="[,.\\n]",ANTIDELIM2="[^,.\\n]";
     public static boolean play = true;
     final static boolean SIMULATION = false;
     final static String[] langs = {
@@ -168,6 +170,31 @@ public final class Frame2 extends javax.swing.JFrame {
         "yo	Yoruba",
         "zu	Zulu"};
     String language = "en_gb";
+    static final HashMap<String, String> la_language = new HashMap<String, String>();
+    static final HashMap<String, String> language_la = new HashMap<String, String>();
+
+    static {
+        String[] arr;
+        for (String s : langs) {
+            arr = s.split("\t");
+            la_language.put(arr[0], arr[1]);
+            language_la.put(arr[1], arr[0]);
+        }
+
+    }
+
+    public void refreshFavorites() {
+        favorites.removeAll();
+        File[] files = new File("CACHE\\").listFiles();
+        for (final File f : files) {
+            if (f.isDirectory()) {
+                JMenuItem item = newLanguageMenuItem(f.getName());
+                if (item != null) {
+                    favorites.add(item);
+                }
+            }
+        }
+    }
 
     /**
      * Creates new form Frame
@@ -176,7 +203,13 @@ public final class Frame2 extends javax.swing.JFrame {
         initComponents();
         init();
         refreshTree();
+        refreshFavorites();
         setTitle("JGoogle TTS - English");
+        
+        JMenuItem item = newLanguageMenuItem("English (GB)");
+        if (item != null) {
+            favorites.add(item);
+        }
     }
 
     /**
@@ -212,6 +245,8 @@ public final class Frame2 extends javax.swing.JFrame {
         jMenuItem3 = new javax.swing.JMenuItem();
         jMenuItem6 = new javax.swing.JMenuItem();
         lang = new javax.swing.JMenu();
+        favorites = new javax.swing.JMenu();
+        jMenuItem7 = new javax.swing.JMenuItem();
         jMenu4 = new javax.swing.JMenu();
         jMenuItem5 = new javax.swing.JMenuItem();
         nowPlaying = new javax.swing.JMenu();
@@ -313,6 +348,13 @@ public final class Frame2 extends javax.swing.JFrame {
         lang.setText("Language");
         jMenuBar1.add(lang);
 
+        favorites.setText("Favorites");
+
+        jMenuItem7.setText("jMenuItem7");
+        favorites.add(jMenuItem7);
+
+        jMenuBar1.add(favorites);
+
         jMenu4.setText("Help");
 
         jMenuItem5.setText("About");
@@ -348,6 +390,7 @@ public final class Frame2 extends javax.swing.JFrame {
     }//GEN-LAST:event_jMenu3ActionPerformed
 
     private void jMenuItem3ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenuItem3ActionPerformed
+        
         Runnable runnable = new Runnable() {
             public void run() {
                 try {
@@ -410,6 +453,8 @@ public final class Frame2 extends javax.swing.JFrame {
             java.awt.EventQueue.invokeLater(new Runnable() {
                 public void run() {
                     new Worker(language).play(new File(((JList) evt.getSource()).getSelectedValue().toString()));
+                    
+        refreshFavorites();
                 }
             });
         }
@@ -419,6 +464,7 @@ public final class Frame2 extends javax.swing.JFrame {
 
         play = false;
         refreshTree();
+        refreshFavorites();
 
         // TODO add your handling code here:
     }//GEN-LAST:event_jMenuItem6ActionPerformed
@@ -434,6 +480,7 @@ public final class Frame2 extends javax.swing.JFrame {
         });
     }
     // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JMenu favorites;
     private javax.swing.JMenu jMenu1;
     private javax.swing.JMenu jMenu2;
     private javax.swing.JMenu jMenu3;
@@ -448,6 +495,7 @@ public final class Frame2 extends javax.swing.JFrame {
     private javax.swing.JMenuItem jMenuItem4;
     private javax.swing.JMenuItem jMenuItem5;
     private javax.swing.JMenuItem jMenuItem6;
+    private javax.swing.JMenuItem jMenuItem7;
     private javax.swing.JPanel jPanel1;
     private javax.swing.JPopupMenu jPopupMenu1;
     private javax.swing.JScrollPane jScrollPane1;
@@ -485,8 +533,8 @@ public final class Frame2 extends javax.swing.JFrame {
         ArrayList list = new ArrayList();
         s = s.toLowerCase().replace("jgoogle", " chay google ")//
                 .replace(" tts", " text to speech ").replace("+", " ");
-        String[] phrases = s.split("[,.\\n]");
-        String[] delims = s.split("[^,.\\n]");
+        String[] phrases = s.split(DELIM);
+        String[] delims = s.split(ANTIDELIM);
         String ret;
         int i = 0;
         for (String phrase : phrases) {
@@ -522,7 +570,9 @@ public final class Frame2 extends javax.swing.JFrame {
     }
 
     public void playMP3(File f) {
-        new Worker(language).play(f);
+        if (!f.isDirectory() && f.getName().toLowerCase().endsWith(".mp3")) {
+            new Worker(language).play(f);
+        }
     }
 
     public File playMP3(String s) {
@@ -537,7 +587,8 @@ public final class Frame2 extends javax.swing.JFrame {
 
     public void playMP3s() {
         final LinkedList files = new LinkedList();
-        Pattern pat = Pattern.compile("([\r\n\\,\\;?!]|[\\,\\.\\;?!][\\s]|[^\r\n\\,\\;?!]+)");
+//        Pattern pat = Pattern.compile("([\r\n\\,\\;?!]|[\\,\\.\\;?!][\\s]|[^\r\n\\,\\;?!]+)");
+        Pattern pat = Pattern.compile("([\r\n]|[^\r\n]+)");
         Matcher m = pat.matcher(txt.getText());
         String s = txt.getText();
         int a = 0, b;
@@ -568,6 +619,10 @@ public final class Frame2 extends javax.swing.JFrame {
         final boolean[] playing = {true};
         Runnable runnable = new Runnable() {
             public void run() {
+                try {
+                    Thread.sleep(500);//delay initial playing
+                } catch (InterruptedException ex) {
+                }
                 while (play) {
                     try {
 
@@ -587,11 +642,12 @@ public final class Frame2 extends javax.swing.JFrame {
                                 if (f instanceof File) {
                                     try {
                                         try {
-                                            lst.setSelectedValue(((File) f).getName(), true);
+                                            lst.setSelectedValue(getPlaylistStringForFile(((File) f)), true);
                                         } catch (Exception e) {
                                             System.out.println("ERROR: list file=" + ((File) f).getAbsolutePath());
                                         }
                                         playMP3((File) f);
+                                        Thread.sleep(500);
                                     } catch (Exception e) {
                                         e.printStackTrace();
                                     }
@@ -646,7 +702,7 @@ public final class Frame2 extends javax.swing.JFrame {
                         files.addLast(20L);
                         files.addLast(file);
                         files.addLast(20L);
-                        listModel.addElement(file.getName());
+                        listModel.addElement(getPlaylistStringForFile(file));
                         lst.invalidate();
                         lst.repaint();
                         lst.validate();
@@ -658,7 +714,7 @@ public final class Frame2 extends javax.swing.JFrame {
                 //synchronized (files) 
                 {
                     files.addLast(file);
-                    listModel.addElement(file.getName());
+                    listModel.addElement(getPlaylistStringForFile(file));
                     lst.invalidate();
                     lst.repaint();
                     lst.validate();
@@ -687,13 +743,7 @@ public final class Frame2 extends javax.swing.JFrame {
         int i = 1;
         for (String l : langs) {
             final String[] str = l.split("\t");
-            JMenuItem item = new JMenuItem(str[1]);
-            item.addActionListener(new ActionListener() {
-                public void actionPerformed(ActionEvent e) {
-                    setLanguage(str[0]);
-                    setTitle("JGoogle TTS - " + str[1]);
-                }
-            });
+            JMenuItem item = newLanguageMenuItem(str[0]);
             subMenus[Math.min(
                     i++ * subMenus.length / langs.length,
                     subMenus.length - 1)].add(item);
@@ -705,9 +755,10 @@ public final class Frame2 extends javax.swing.JFrame {
     }
 
     private void refreshTree() {
-        TreeSelectionListener listener=new  TreeSelectionListener() {
+        TreeSelectionListener listener = new TreeSelectionListener() {
+            
             @Override
-            public void valueChanged(final TreeSelectionEvent e){
+            public void valueChanged(final TreeSelectionEvent e) {
                 Runnable runnable = new Runnable() {
                     public void run() {
                         try {
@@ -717,7 +768,9 @@ public final class Frame2 extends javax.swing.JFrame {
                             int i = 0;
                             for (Object s : path) {
                                 str += s;
-                                if(i<path.length-1)str+="\\";
+                                if (i < path.length - 1) {
+                                    str += "\\";
+                                }
                                 i++;
                             }
                             System.out.println("PLAY: " + str);
@@ -730,8 +783,39 @@ public final class Frame2 extends javax.swing.JFrame {
                 new Thread(runnable).start();
             }
         };
+        
         FileTree tree = new FileTree(new File("CACHE\\"), listener);
         jScrollPane3.getViewport().add(tree);
         //tree.addMouseListener(listener);
+    }
+
+    public JMenuItem newLanguageMenuItem(final String la) {
+        if (!la_language.containsKey(la)) {
+            return null;
+        }
+        JMenuItem item = new JMenuItem(la_language.get(la));
+        item.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                setLanguage(la);
+                setTitle("JGoogle TTS - " + la_language.get(la));
+            }
+        });
+        return item;
+    }public JMenuItem newLanguageMenuItemRev(final String language) {
+        if (!language_la.containsKey(language)) {
+            return null;
+        }
+        JMenuItem item = new JMenuItem(language);
+        item.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                setLanguage(language_la.get(language));
+                setTitle("JGoogle TTS - " + language);
+            }
+        });
+        return item;
+    }
+
+    public String getPlaylistStringForFile(File file) {
+        return String.format("%-20s  %5s KB", file.getName(), file.length() / 1024);
     }
 }
