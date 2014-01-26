@@ -3,21 +3,33 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-
 package org.ldtwo.GoTTS;
+
+import java.io.File;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 
 /**
  *
  * @author ldtwo
  */
-public class EditorPanel extends javax.swing.JPanel {
-public String tabName="English";
-    public  String la_ = "en_gb";
+public class EditorPanel extends javax.swing.JPanel implements DocumentListener {
+
+    public String tabName = "English";
+    public File file = null;
+    public String la_ = "en_gb";
+    public boolean modified=false;
+    public boolean monitor=false;
+
     /**
      * Creates new form EditorPanel
      */
     public EditorPanel() {
         initComponents();
+        txt.getDocument().addDocumentListener(this);
+    }
+    public String getLanguage(){
+        return G.LA_LANGUAGE.get(la_);
     }
 
     /**
@@ -44,4 +56,21 @@ public String tabName="English";
     // Variables declaration - do not modify//GEN-BEGIN:variables
     public javax.swing.JTextArea txt;
     // End of variables declaration//GEN-END:variables
+
+    @Override
+    public void insertUpdate(DocumentEvent e) {
+       
+       if(monitor)modified=true;
+    }
+
+    @Override
+    public void removeUpdate(DocumentEvent e) {
+       
+       if(monitor)modified=true;
+    }
+
+    @Override
+    public void changedUpdate(DocumentEvent e) {
+       if(monitor)modified=true;
+    }
 }

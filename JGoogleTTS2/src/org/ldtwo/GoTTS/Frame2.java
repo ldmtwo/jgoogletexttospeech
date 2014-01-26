@@ -10,28 +10,66 @@
  */
 package org.ldtwo.GoTTS;
 
-import java.awt.HeadlessException;
+import java.awt.BasicStroke;
+import java.awt.BorderLayout;
+import java.awt.CardLayout;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Font;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.GridLayout;
+import java.awt.Insets;
+import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Scanner;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import javax.swing.AbstractButton;
+import javax.swing.BorderFactory;
+import javax.swing.BoxLayout;
 import javax.swing.DefaultListModel;
+import javax.swing.JButton;
 import javax.swing.JFileChooser;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JTabbedPane;
+import javax.swing.SpringLayout;
+import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
+import javax.swing.UIManager.LookAndFeelInfo;
+import javax.swing.WindowConstants;
 import javax.swing.event.TreeSelectionEvent;
 import javax.swing.event.TreeSelectionListener;
+import javax.swing.plaf.basic.BasicButtonUI;
+import javax.swing.plaf.basic.BasicOptionPaneUI;
 import static org.ldtwo.GoTTS.G.*;
 
 /**
@@ -39,6 +77,8 @@ import static org.ldtwo.GoTTS.G.*;
  * @author Larry Moore
  */
 public final class Frame2 extends javax.swing.JFrame {
+
+    JFrame ths;
 
     public void refreshFavorites() {
         favorites.removeAll();
@@ -56,17 +96,77 @@ public final class Frame2 extends javax.swing.JFrame {
     /**
      * Creates new form Frame
      */
-    public Frame2() {
+    public Frame2() throws FileNotFoundException {
+        ths = this;
         initComponents();
         init();
+        setSize(1000, 600);
+        addComponentListener(new  ComponentAdapter() {
+
+            @Override
+            public void componentResized(ComponentEvent e) {
+                
+                super.componentResized(e); //To change body of generated methods, choose Tools | Templates.
+                tabPane.setPreferredSize(new Dimension(200,0));
+                        
+            }
+
+        });
+        Dimension dim = Toolkit.getDefaultToolkit().getScreenSize();
+this.setLocation(dim.width/2-this.getSize().width/2, dim.height/2-this.getSize().height/2);
+        tabPane.setTabPlacement(JTabbedPane.BOTTOM);
+        ths.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
         refreshTree();
         refreshFavorites();
         setTitle("JGoogle TTS - English");
-        addPanel();
+//        addPanel();
+        openFile(new File("default text.txt"));
+        try {
+            String[] files = new Scanner(new File(".lastOpened.txt")).useDelimiter("\\A").next().split("\n");
+            for (String f : files) {
+                openFile(new File(f));
+            }
+        } catch (Exception e) {
+            System.err.println("lastopened is missing or corrupted!");
+//            e.printStackTrace();
+        }
         JMenuItem item = newLanguageMenuItem("English (GB)");
         if (item != null) {
             favorites.add(item);
         }
+        this.addWindowListener(new WindowAdapter() {
+
+            @Override
+            public void windowClosing(WindowEvent e) {
+
+                int result = JOptionPane.YES_OPTION;
+                //result=JOptionPane.showConfirmDialog(null, "Are you sure you want to close GoTTS?");
+                if (result == JOptionPane.YES_OPTION) {
+                    for (EditorPanel p : G.tabList) {
+                        if (p.file != null) {
+                            if (!p.modified) {
+                                continue;
+                            }
+                        }
+                        if (JOptionPane.showConfirmDialog(null,
+                                "Would you like to save this?") == JOptionPane.YES_OPTION) {
+                            //save file
+                            saveFile(p);
+                        }
+                    }
+                    String fileList = "";
+                    for (EditorPanel p : G.tabList) {
+                        if (p.file != null) {
+                            fileList += p.file.getAbsolutePath() + "\n";
+                        }
+                    }
+                    textToFile(".lastOpened.txt", fileList);
+                    super.windowClosing(e);
+                    System.exit(0);
+                }
+            }
+
+        });
     }
 
     public EditorPanel getActiveTab() {
@@ -81,9 +181,10 @@ public final class Frame2 extends javax.swing.JFrame {
     public void addPanel() {
         EditorPanel pan = new EditorPanel();
         tabPane.add(pan);
-        String name = G.la_language.get(pan.la_);
+        String name = G.LA_LANGUAGE.get(pan.la_);
         int index = tabPane.getTabCount() - 1;
         updateTabTitle(name, pan, index);
+        tabPane.setTabComponentAt(index, new TabComponent(tabPane));
         G.tabList.addLast(pan);
     }
 
@@ -153,6 +254,7 @@ public final class Frame2 extends javax.swing.JFrame {
         favorites = new javax.swing.JMenu();
         jMenuItem7 = new javax.swing.JMenuItem();
         jMenu4 = new javax.swing.JMenu();
+        jMenuItem8 = new javax.swing.JMenuItem();
         jMenuItem5 = new javax.swing.JMenuItem();
 
         jMenu5.setText("File");
@@ -167,10 +269,17 @@ public final class Frame2 extends javax.swing.JFrame {
 
         jPanel1.setLayout(new java.awt.GridLayout(1, 0));
 
-        jSplitPane2.setDividerLocation(400);
-        jSplitPane2.setDividerSize(7);
-        jSplitPane2.setResizeWeight(0.5);
+        jSplitPane1.setDividerLocation(250);
+        jSplitPane1.setDividerSize(7);
 
+        jSplitPane2.setDividerLocation(600);
+        jSplitPane2.setDividerSize(7);
+        jSplitPane2.setResizeWeight(1.0);
+        jSplitPane2.setToolTipText("");
+        jSplitPane2.setPreferredSize(new java.awt.Dimension(800, 132));
+
+        tabPane.setTabPlacement(javax.swing.JTabbedPane.BOTTOM);
+        tabPane.setToolTipText("");
         jScrollPane1.setViewportView(tabPane);
 
         jSplitPane2.setLeftComponent(jScrollPane1);
@@ -178,6 +287,7 @@ public final class Frame2 extends javax.swing.JFrame {
         lst.setBackground(new java.awt.Color(0, 0, 51));
         lst.setForeground(new java.awt.Color(255, 255, 204));
         lst.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
+        lst.setPreferredSize(new java.awt.Dimension(50, 0));
         lst.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseClicked(java.awt.event.MouseEvent evt) {
                 lstMouseClicked(evt);
@@ -189,6 +299,7 @@ public final class Frame2 extends javax.swing.JFrame {
 
         jSplitPane1.setRightComponent(jSplitPane2);
 
+        jTree1.setPreferredSize(new java.awt.Dimension(50, 64));
         jScrollPane3.setViewportView(jTree1);
 
         jSplitPane1.setLeftComponent(jScrollPane3);
@@ -266,6 +377,14 @@ public final class Frame2 extends javax.swing.JFrame {
 
         jMenu4.setText("Help");
 
+        jMenuItem8.setText("Demo");
+        jMenuItem8.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jMenuItem8ActionPerformed(evt);
+            }
+        });
+        jMenu4.add(jMenuItem8);
+
         jMenuItem5.setText("About");
         jMenuItem5.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
@@ -282,7 +401,7 @@ public final class Frame2 extends javax.swing.JFrame {
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, 823, Short.MAX_VALUE)
+            .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, 1098, Short.MAX_VALUE)
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -321,35 +440,65 @@ public final class Frame2 extends javax.swing.JFrame {
 
     private void jMenuItem1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenuItem1ActionPerformed
         BufferedReader br = null;
+
+        File file;
+        JFileChooser chooser = new JFileChooser();
+        chooser.showSaveDialog(this);
+        file = chooser.getSelectedFile();
+        if (file == null) {
+            return;
+        }
+        openFile(file);
+
+    }
+
+    public void openFile(File file) {
+        BufferedReader br = null;
         try {
-            File f = null;
-            JFileChooser chooser = new JFileChooser();
-            chooser.showOpenDialog(this);
-            f = chooser.getSelectedFile();
-            if (f == null) {
+            file = file.getAbsoluteFile();
+            if (G.openFiles.contains(file)) {
+                //JOptionPane.showMessageDialog(null, "Error: You cannot have a file opened twice!", "Error", JOptionPane.ERROR_MESSAGE);
                 return;
             }
-            StringBuilder buf = new StringBuilder();
-            br = new BufferedReader(new FileReader(f));
-            while (true) {
-                String s = br.readLine();
-                if (s == null) {
-                    break;
-                }
-                buf.append(s);
+            if (!file.exists()) {
+                return;
             }
-            getActiveTab().txt.setText(buf.toString());
-        } catch (HeadlessException | IOException ex) {
+            addPanel();
+            EditorPanel pan = getActiveTab();
+//            StringBuilder buf = new StringBuilder();
+//            br = new BufferedReader(new FileReader(file), 512);
+//            while (true) {
+//                String s = br.readLine();
+//                if (s == null) {
+//                    break;
+//                }
+//                buf.append(s).append("\n");
+//            }
+            G.openFiles.add(file);
+            pan.file = file;
+            updateTabTitle(getTabTitle(pan), pan, tabPane.getSelectedIndex());
+            pan.txt.setText(new Scanner(file).useDelimiter("\\A").next());
+            pan.monitor = true;
+        } catch (Exception ex) {
             Logger.getLogger(Frame2.class.getName()).log(Level.SEVERE, null, ex);
         } finally {
-            try {
-                br.close();
-            } catch (IOException ex) {
-                Logger.getLogger(Frame2.class.getName()).log(Level.SEVERE, null, ex);
-            }
+//            try {
+//                if (br != null) {
+//                    br.close();
+//                }
+//            } catch (IOException ex) {
+//                Logger.getLogger(Frame2.class.getName()).log(Level.SEVERE, null, ex);
+//            }
         }
 
     }//GEN-LAST:event_jMenuItem1ActionPerformed
+
+    public String getTabTitle(EditorPanel pan) {
+        if (pan.file == null) {
+            return pan.getLanguage();
+        }
+        return String.format("%s [%s]", pan.file.getName(), pan.getLanguage());
+    }
 
     private void lstMouseClicked(final java.awt.event.MouseEvent evt) {//GEN-FIRST:event_lstMouseClicked
 
@@ -383,13 +532,61 @@ public final class Frame2 extends javax.swing.JFrame {
 
     }//GEN-LAST:event_newTabMenuItemActionPerformed
 
+    private void jMenuItem8ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenuItem8ActionPerformed
+
+        addPanel();
+        getActiveTab().txt.setText("Bonjour, comment allez-vous aujourd'hui?");
+        getActiveTab().la_ = "fr";
+        updateTabTitle("French/Francais", getActiveTab(), tabPane.getSelectedIndex());
+        addPanel();
+        getActiveTab().txt.setText("Hola, ¿cómo estás hoy? \n"
+                + "¿Has oído el caso de ese fugitivo que secuestró un autobús de turistas japoneses?\n" +
+"La policía tiene 5.000 fotos suyas.");
+        getActiveTab().la_ = "es";
+        updateTabTitle("Spanish/Espanol", getActiveTab(), tabPane.getSelectedIndex());
+        addPanel();
+        getActiveTab().txt.setText("你好\n请听我说。\n了吗？");
+        getActiveTab().la_ = "zh-TW";
+        updateTabTitle("Chinese/Mandarin", getActiveTab(), tabPane.getSelectedIndex());
+        addPanel();
+        getActiveTab().txt.setText("Hallo, wie geht es Ihnen heute?");
+        getActiveTab().la_ = "de";
+        updateTabTitle("German/Deutch", getActiveTab(), tabPane.getSelectedIndex());
+        addPanel();
+        getActiveTab().txt.setText("With his windows down and his system up\n" +
+            "So, will the real Shady please stand up?\n" +
+            "'Cause I'm Slim Shady, yes I'm the real Shady\n" +
+            "All you other Slim Shadys are just imitating\n" +
+            "So won't the real Slim Shady please stand up,\n" +
+            "Please stand up, please stand up?\n" +
+            "Alrighty? You can sit down now. That was rhetorical.");
+        getActiveTab().la_ = "en_gb";
+        updateTabTitle("English/UK Hood", getActiveTab(), tabPane.getSelectedIndex());
+        playMP3s();
+// TODO add your handling code here:
+    }//GEN-LAST:event_jMenuItem8ActionPerformed
+
     /**
      * @param args the command line arguments
      */
     public static void main(String args[]) {
         java.awt.EventQueue.invokeLater(new Runnable() {
             public void run() {
-                new Frame2().setVisible(true);
+                try {
+                    try {
+    for (LookAndFeelInfo info : UIManager.getInstalledLookAndFeels()) {
+        if ("Nimbus".equals(info.getName())) {
+            UIManager.setLookAndFeel(info.getClassName());
+            break;
+        }
+    }
+} catch (Exception e) {
+    // If Nimbus is not available, you can set the GUI to another look and feel.
+}
+                    new Frame2().setVisible(true);
+                } catch (Exception ex) {
+                    Logger.getLogger(Frame2.class.getName()).log(Level.SEVERE, null, ex);
+                }
             }
         });
     }
@@ -410,6 +607,7 @@ public final class Frame2 extends javax.swing.JFrame {
     private javax.swing.JMenuItem jMenuItem5;
     private javax.swing.JMenuItem jMenuItem6;
     private javax.swing.JMenuItem jMenuItem7;
+    private javax.swing.JMenuItem jMenuItem8;
     private javax.swing.JPanel jPanel1;
     private javax.swing.JPopupMenu jPopupMenu1;
     private javax.swing.JScrollPane jScrollPane1;
@@ -529,7 +727,6 @@ public final class Frame2 extends javax.swing.JFrame {
          };*/
 
         lst.setModel(listModel);
-        final boolean[] playing = {true};
         Runnable runnable = new Runnable() {
             @Override
             public void run() {
@@ -541,7 +738,7 @@ public final class Frame2 extends javax.swing.JFrame {
                     try {
 
                         if (files.size() > 0) {
-                            Object[] playlist = null;
+                            Object[] playlist;
                             synchronized (files) {
                                 playlist = files.toArray(new Object[]{});
                                 for (Object f : playlist) {
@@ -561,7 +758,7 @@ public final class Frame2 extends javax.swing.JFrame {
                                             System.out.println("ERROR: list file=" + ((File) f).getAbsolutePath());
                                         }
                                         playMP3((File) f);
-                                        Thread.sleep(500);
+//                                        Thread.sleep(500);
                                     } catch (Exception e) {
                                         e.printStackTrace();
                                     }
@@ -646,8 +843,8 @@ public final class Frame2 extends javax.swing.JFrame {
         String[] left, right;
         for (int x = 0; x < subMenus.length; x++) {
 //            subMenus[x] = new JMenu("       " + (char) ('A' + x) + "       ");
-            left = langs[langs.length * x / subMenus.length].split("\t");
-            right = langs[Math.min(langs.length, langs.length * (x + 1) / subMenus.length - 1)].split("\t");
+            left = LANGS[LANGS.length * x / subMenus.length].split("\t");
+            right = LANGS[Math.min(LANGS.length, LANGS.length * (x + 1) / subMenus.length - 1)].split("\t");
             subMenus[x] = new JMenu(String.format("%-8s       %8s",
                     left[1].substring(0, Math.min(3, left[1].length())),
                     right[1].substring(0, Math.min(3, right[1].length()))).replace(" ", "."));
@@ -655,11 +852,11 @@ public final class Frame2 extends javax.swing.JFrame {
             lang.add(subMenus[x]);
         }
         int i = 1;
-        for (String l : langs) {
+        for (String l : LANGS) {
             final String[] str = l.split("\t");
             JMenuItem item = newLanguageMenuItem(str[0]);
             subMenus[Math.min(
-                    i++ * subMenus.length / langs.length,
+                    i++ * subMenus.length / LANGS.length,
                     subMenus.length - 1)].add(item);
 
         }
@@ -705,32 +902,32 @@ public final class Frame2 extends javax.swing.JFrame {
     }
 
     public JMenuItem newLanguageMenuItem(final String la) {
-        if (!la_language.containsKey(la)) {
+        if (!LA_LANGUAGE.containsKey(la)) {
             return null;
         }
-        JMenuItem item = new JMenuItem(la_language.get(la));
+        JMenuItem item = new JMenuItem(LA_LANGUAGE.get(la));
         item.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 setLanguage(la);
-                String name = la_language.get(la);
+                String name = LA_LANGUAGE.get(la);
                 setTitle("JGoogle TTS - " + name);
                 EditorPanel pan = getActiveTab();
                 pan.la_ = la;
+                updateTabTitle(getTabTitle(pan), pan, tabPane.getSelectedIndex());
 
-                updateTabTitle(name, pan, tabPane.getSelectedIndex());
             }
         });
         return item;
     }
 
     public JMenuItem newLanguageMenuItemRev(final String language) {
-        if (!language_la.containsKey(language)) {
+        if (!LANGUAGE_LA.containsKey(language)) {
             return null;
         }
         JMenuItem item = new JMenuItem(language);
         item.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
-                setLanguage(language_la.get(language));
+                setLanguage(LANGUAGE_LA.get(language));
                 setTitle("JGoogle TTS - " + language);
             }
         });
@@ -740,4 +937,130 @@ public final class Frame2 extends javax.swing.JFrame {
     public String getPlaylistStringForFile(File file) {
         return String.format("%-20s  %5s KB", file.getName(), file.length() / 1024);
     }
+
+    public class TabComponent extends JPanel {
+
+        private final JTabbedPane pane;
+
+        public TabComponent(final JTabbedPane pane) {
+            //unset default FlowLayout' gaps
+            super(new GridBagLayout());
+            if (pane == null) {
+                throw new NullPointerException("TabbedPane is null");
+            }
+//            this.setSize(100, 14);
+//            this.setPreferredSize(new Dimension(100, 14));
+            this.pane = pane;
+            setOpaque(false);
+            GridBagConstraints gbc = new GridBagConstraints();
+            gbc.weightx = 100;
+            gbc.gridx = 1;
+            gbc.gridwidth = 100;
+            gbc.ipadx = 0;
+            gbc.fill = GridBagConstraints.BOTH;
+//            gbc.insets=new Insets(0, 0, 0, 0);
+            //make JLabel read titles from JTabbedPane
+            JLabel label = new JLabel() {
+                public String getText() {
+                    int i = pane.indexOfTabComponent(TabComponent.this);
+                    if (i != -1) {
+                        return pane.getTitleAt(i);
+                    }
+                    return null;
+                }
+            };
+            label.setFont(new Font("Arial Unicode", Font.PLAIN, 11));
+            add(label, gbc);
+            gbc.gridx = 2;
+            //add more space between the label and the button
+            label.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 0));
+            //tab button
+            JButton button = new TabButton();
+
+            gbc.weightx = 1;
+            gbc.gridx = 101;
+            gbc.gridwidth = 1;
+            add(button, gbc);
+            //add more space to the top of the component
+            setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 0));
+
+//            setBackground(Color.red);
+            this.getInsets().set(0, 0, 0, 0);
+            label.getInsets().set(0, 0, 0, 0);
+            button.getInsets().set(0, 0, 0, 0);
+        }
+
+        private class TabButton extends JButton implements ActionListener {
+
+            public TabButton() {
+                super("\u00D7");
+                setForeground(Color.DARK_GRAY);
+                setFont(new Font("Arial Unicode", Font.BOLD, 22));
+                int size = 17;
+                setPreferredSize(new Dimension(size, size));
+                setToolTipText("close this tab");
+                //Make the button looks the same for all Laf's
+                SwingUtilities.invokeLater(new Runnable() {
+
+                    @Override
+                    public void run() {
+//                        try {
+////                            Thread.sleep(1500);
+//                        } catch (InterruptedException ex) {
+//                            Logger.getLogger(Frame2.class.getName()).log(Level.SEVERE, null, ex);
+//                        }
+                        setUI(new BasicButtonUI());//way too slow
+                    }
+                });
+                //Make it transparent
+                setContentAreaFilled(false);
+                //No need to be focusable
+                setFocusable(false);
+                setBorder(BorderFactory.createEtchedBorder());
+                setBorderPainted(false);
+                //Making nice rollover effect
+                //we use the same listener for all buttons
+                addMouseListener(buttonMouseListener);
+                setRolloverEnabled(true);
+                //Close the proper tab by clicking the button
+                addActionListener(this);
+            }
+
+            public void actionPerformed(ActionEvent e) {
+                int i = pane.indexOfTabComponent(TabComponent.this);
+                if (i != -1) {
+                    EditorPanel pan = (EditorPanel) pane.getComponentAt(i);
+                    G.tabList.remove(pan);
+                    G.openFiles.remove(pan.file);
+
+                    pane.remove(i);
+                }
+            }
+
+            //we don't want to update UI for this button
+            public void updateUI() {
+            }
+
+            //paint the cross
+//            protected void paintComponent(Graphics g) {
+//                super.paintComponent(g);
+//                Graphics2D g2 = (Graphics2D) g.create();
+//                //shift the image for pressed buttons
+//                if (getModel().isPressed()) {
+//                    g2.translate(1, 1);
+//                }
+//                g2.setStroke(new BasicStroke(2));
+//                g2.setColor(Color.BLACK);
+//                if (getModel().isRollover()) {
+//                    g2.setColor(Color.MAGENTA);
+//                }
+//                int delta = 6;
+//                g2.drawLine(delta, delta, getWidth() - delta - 1, getHeight() - delta - 1);
+//                g2.drawLine(getWidth() - delta - 1, delta, delta, getHeight() - delta - 1);
+//                g2.dispose();
+//            }
+        }
+
+    }
+    private static final MouseListener buttonMouseListener = new BorderChangeMouseAdapter();
 }
