@@ -10,66 +10,58 @@
  */
 package org.ldtwo.GoTTS;
 
-import java.awt.BasicStroke;
-import java.awt.BorderLayout;
-import java.awt.CardLayout;
 import java.awt.Color;
-import java.awt.Component;
 import java.awt.Dimension;
-import java.awt.FlowLayout;
 import java.awt.Font;
-import java.awt.Graphics;
-import java.awt.Graphics2D;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
-import java.awt.GridLayout;
-import java.awt.Insets;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileReader;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.security.Provider;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Properties;
 import java.util.Scanner;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import javax.swing.AbstractButton;
+import javax.media.Time;
 import javax.swing.BorderFactory;
-import javax.swing.BoxLayout;
 import javax.swing.DefaultListModel;
 import javax.swing.JButton;
 import javax.swing.JFileChooser;
-import javax.swing.JFrame;
 import javax.swing.JLabel;
-import javax.swing.JList;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTabbedPane;
-import javax.swing.SpringLayout;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.UIManager.LookAndFeelInfo;
 import javax.swing.WindowConstants;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
 import javax.swing.event.TreeSelectionEvent;
 import javax.swing.event.TreeSelectionListener;
 import javax.swing.plaf.basic.BasicButtonUI;
-import javax.swing.plaf.basic.BasicOptionPaneUI;
 import static org.ldtwo.GoTTS.G.*;
 
 /**
@@ -78,34 +70,79 @@ import static org.ldtwo.GoTTS.G.*;
  */
 public final class Frame2 extends javax.swing.JFrame {
 
-    JFrame ths;
+    static public Frame2 ths;
 
     public void refreshFavorites() {
         favorites.removeAll();
-        new File("CACHE\\").mkdirs();
+        File dir = new File("CACHE\\");
+        if (!dir.exists()) {
+            String[] defaultfavLangs = "en_gb,en,es,fr,ko,zh-TW".split(",");
+            JMenuItem item;
+            favorites.add(new JMenuItem("- - - Using default list (will update upon use) - - -"));
+            for (String lang_ : defaultfavLangs) {
+                if (lang_.length() < 1) {
+                    continue;
+                }
+                item = newLanguageMenuItem(lang_);
+                if (item != null) {
+                    favorites.add(item);
+                }
+            }
+            return;
+        }
+        dir.mkdirs();
         try {
-            System.out.println(new File("CACHE\\").getAbsolutePath());
-            File[] files = new File("CACHE\\").listFiles();
+            //System.out.println(new File("CACHE\\").getAbsolutePath());
+            File[] files = dir.listFiles();
             for (final File f : files) {
                 if (f.isDirectory()) {
                     JMenuItem item = newLanguageMenuItem(f.getName());
-                    if (item != null) {
+                    if (item != null) {//Ex: found as zh-TW
                         favorites.add(item);
+                    } else {//Ex: found as Chinese (Traditional)
+                        item = newLanguageMenuItemRev(f.getName());
+                        if (item != null) {
+                            favorites.add(item);
+                        }
                     }
                 }
             }
         } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
     /**
      * Creates new form Frame
      */
-    public Frame2() throws FileNotFoundException {
+    public Frame2() throws Exception {
         ths = this;
         initComponents();
         init();
         setSize(1000, 600);
+        final Properties langProp = new Properties();
+        try {
+            langProp.load(new FileInputStream("lang_hist.txt"));
+        } catch (FileNotFoundException e) {
+            System.err.println("ERROR: lang_hist.txt not loaded!");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        tabPane.addChangeListener(new ChangeListener() {
+
+            @Override
+            public void stateChanged(ChangeEvent e) {
+
+                EditorPanel pan = getActiveTab();
+                int idx = tabPane.indexOfTab(pan.tabName);
+                if (idx >= 0) {
+                    ths.setTitle(
+                            tabPane.getTitleAt(idx)
+                    );
+                }
+            }
+        });
+
         addComponentListener(new ComponentAdapter() {
 
             @Override
@@ -119,22 +156,27 @@ public final class Frame2 extends javax.swing.JFrame {
         });
         Dimension dim = Toolkit.getDefaultToolkit().getScreenSize();
         this.setLocation(dim.width / 2 - this.getSize().width / 2, dim.height / 2 - this.getSize().height / 2);
-        tabPane.setTabPlacement(JTabbedPane.BOTTOM);
         ths.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
         refreshTree();
         refreshFavorites();
         setTitle("JGoogle TTS - English");
-        openFile(new File("default text.txt"));
         try {
             String[] files = new Scanner(new File(".lastOpened.txt")).useDelimiter("\\A").next().split("\n");
             for (String f : files) {
-                openFile(new File(f));
+                EditorPanel pan = openFile(new File(f));
+                if (pan != null) {
+                    pan.la_ = langProp.getProperty(f, "en_gb");
+                    updateTabTitle(getTabTitle(pan), pan, tabPane.getSelectedIndex());
+                }
             }
         } catch (Exception e) {
             System.err.println("lastopened is missing or corrupted!");
+            e.printStackTrace();
 //            e.printStackTrace();
         }
+
         if (1 > tabPane.getTabCount()) {
+            openFile(new File("default text.txt"));//!!
             addPanel();
         }
         JMenuItem item = newLanguageMenuItem("English (GB)");
@@ -146,8 +188,8 @@ public final class Frame2 extends javax.swing.JFrame {
             @Override
             public void windowClosing(WindowEvent e) {
 
-                int result = JOptionPane.YES_OPTION;
-                //result=JOptionPane.showConfirmDialog(null, "Are you sure you want to close GoTTS?");
+                int result = !CONFIRM_CLOSE ? JOptionPane.YES_OPTION
+                        : JOptionPane.showConfirmDialog(null, "Are you sure you want to close GoTTS?");
                 if (result == JOptionPane.YES_OPTION) {
                     for (EditorPanel p : G.tabList) {
                         if (p.file != null) {
@@ -156,19 +198,34 @@ public final class Frame2 extends javax.swing.JFrame {
                             }
                         }
                         String name = p.file == null ? p.tabName : p.file.getName();
-                        if (JOptionPane.showConfirmDialog(null,
-                                "Would you like to save this? " + name) == JOptionPane.YES_OPTION) {
+                        tabPane.setSelectedComponent(p);
+                        result = JOptionPane.showConfirmDialog(null,
+                                "Would you like to save this? " + name);
+                        if (result == JOptionPane.YES_OPTION) {
                             //save file
-                            saveFile(p);
+                            saveFile(p, false);
+                        } else if (result == JOptionPane.CANCEL_OPTION || result == JOptionPane.CLOSED_OPTION) {
+                            return;
                         }
                     }
                     String fileList = "";
+                    Properties prop = new Properties(langProp);
+
                     for (EditorPanel p : G.tabList) {
                         if (p.file != null) {
                             fileList += p.file.getAbsolutePath() + "\n";
+                            prop.put(p.file.getAbsolutePath(), p.la_);
                         }
                     }
                     textToFile(".lastOpened.txt", fileList);
+
+                    try {
+                        prop.store(new FileOutputStream("lang_hist.txt"),
+                                "This file contains the last used language for every file. Ex: en,en_gb,en_au,fr,zh-TW,...");
+                    } catch (IOException e2) {
+                        e2.printStackTrace();
+                    }
+
                     super.windowClosing(e);
                     System.exit(0);
                 }
@@ -188,12 +245,12 @@ public final class Frame2 extends javax.swing.JFrame {
 
     public void addPanel() {
         EditorPanel pan = new EditorPanel();
+        G.tabList.addLast(pan);
         tabPane.add(pan);
         String name = G.LA_LANGUAGE.get(pan.la_);
         int index = tabPane.getTabCount() - 1;
         updateTabTitle(name, pan, index);
         tabPane.setTabComponentAt(index, new TabComponent(tabPane));
-        G.tabList.addLast(pan);
     }
 
     private void updateTabTitle(String name, EditorPanel pan, int index) {
@@ -242,22 +299,34 @@ public final class Frame2 extends javax.swing.JFrame {
         jPanel1 = new javax.swing.JPanel();
         jSplitPane1 = new javax.swing.JSplitPane();
         jSplitPane2 = new javax.swing.JSplitPane();
-        jScrollPane1 = new javax.swing.JScrollPane();
+        jScrollPane5 = new javax.swing.JScrollPane();
+        jScrollPane6 = new javax.swing.JScrollPane();
         tabPane = new javax.swing.JTabbedPane();
         jScrollPane2 = new javax.swing.JScrollPane();
         lst = new javax.swing.JList();
-        jScrollPane3 = new javax.swing.JScrollPane();
+        leftScrollPane = new javax.swing.JScrollPane();
         jTree1 = new javax.swing.JTree();
         jToolBar1 = new javax.swing.JToolBar();
         jMenuBar1 = new javax.swing.JMenuBar();
         jMenu1 = new javax.swing.JMenu();
         jMenuItem1 = new javax.swing.JMenuItem();
+        saveCurrentTab = new javax.swing.JMenuItem();
+        saveAs = new javax.swing.JMenuItem();
+        saveAllTabs = new javax.swing.JMenuItem();
         newTabMenuItem = new javax.swing.JMenuItem();
+        jSeparator1 = new javax.swing.JPopupMenu.Separator();
         jMenuItem2 = new javax.swing.JMenuItem();
         jMenu2 = new javax.swing.JMenu();
         jMenu3 = new javax.swing.JMenu();
         jMenuItem3 = new javax.swing.JMenuItem();
+        randomPlayItem = new javax.swing.JMenuItem();
+        pauseItem = new javax.swing.JMenuItem();
         jMenuItem6 = new javax.swing.JMenuItem();
+        jSeparator2 = new javax.swing.JPopupMenu.Separator();
+        delayInc = new javax.swing.JMenuItem();
+        delayDec = new javax.swing.JMenuItem();
+        fontInc = new javax.swing.JMenuItem();
+        fontDec = new javax.swing.JMenuItem();
         lang = new javax.swing.JMenu();
         favorites = new javax.swing.JMenu();
         jMenuItem7 = new javax.swing.JMenuItem();
@@ -285,22 +354,25 @@ public final class Frame2 extends javax.swing.JFrame {
         jSplitPane2.setResizeWeight(1.0);
         jSplitPane2.setToolTipText("");
         jSplitPane2.setPreferredSize(new java.awt.Dimension(800, 132));
+        jSplitPane2.setRightComponent(jScrollPane5);
 
-        tabPane.setTabPlacement(javax.swing.JTabbedPane.BOTTOM);
+        tabPane.setTabLayoutPolicy(javax.swing.JTabbedPane.SCROLL_TAB_LAYOUT);
+        tabPane.setTabPlacement(javax.swing.JTabbedPane.RIGHT);
         tabPane.setToolTipText("");
-        jScrollPane1.setViewportView(tabPane);
+        tabPane.setFont(new java.awt.Font("Arial Unicode MS", 0, 12)); // NOI18N
+        tabPane.addMouseWheelListener(new java.awt.event.MouseWheelListener() {
+            public void mouseWheelMoved(java.awt.event.MouseWheelEvent evt) {
+                tabPaneMouseWheelMoved(evt);
+            }
+        });
+        jScrollPane6.setViewportView(tabPane);
 
-        jSplitPane2.setLeftComponent(jScrollPane1);
+        jSplitPane2.setLeftComponent(jScrollPane6);
 
         lst.setBackground(new java.awt.Color(0, 0, 51));
         lst.setForeground(new java.awt.Color(255, 255, 204));
         lst.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
         lst.setPreferredSize(new java.awt.Dimension(50, 0));
-        lst.addMouseListener(new java.awt.event.MouseAdapter() {
-            public void mouseClicked(java.awt.event.MouseEvent evt) {
-                lstMouseClicked(evt);
-            }
-        });
         jScrollPane2.setViewportView(lst);
 
         jSplitPane2.setRightComponent(jScrollPane2);
@@ -308,9 +380,9 @@ public final class Frame2 extends javax.swing.JFrame {
         jSplitPane1.setRightComponent(jSplitPane2);
 
         jTree1.setPreferredSize(new java.awt.Dimension(50, 64));
-        jScrollPane3.setViewportView(jTree1);
+        leftScrollPane.setViewportView(jTree1);
 
-        jSplitPane1.setLeftComponent(jScrollPane3);
+        jSplitPane1.setLeftComponent(leftScrollPane);
 
         jPanel1.add(jSplitPane1);
 
@@ -327,6 +399,32 @@ public final class Frame2 extends javax.swing.JFrame {
         });
         jMenu1.add(jMenuItem1);
 
+        saveCurrentTab.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_S, java.awt.event.InputEvent.SHIFT_MASK | java.awt.event.InputEvent.CTRL_MASK));
+        saveCurrentTab.setText("Save");
+        saveCurrentTab.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                saveCurrentTabActionPerformed(evt);
+            }
+        });
+        jMenu1.add(saveCurrentTab);
+
+        saveAs.setText("Save as ...");
+        saveAs.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                saveAsActionPerformed(evt);
+            }
+        });
+        jMenu1.add(saveAs);
+
+        saveAllTabs.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_S, java.awt.event.InputEvent.ALT_MASK | java.awt.event.InputEvent.CTRL_MASK));
+        saveAllTabs.setText("Save All");
+        saveAllTabs.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                saveAllTabsActionPerformed(evt);
+            }
+        });
+        jMenu1.add(saveAllTabs);
+
         newTabMenuItem.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_N, java.awt.event.InputEvent.CTRL_MASK));
         newTabMenuItem.setText("New Tab");
         newTabMenuItem.addActionListener(new java.awt.event.ActionListener() {
@@ -335,6 +433,7 @@ public final class Frame2 extends javax.swing.JFrame {
             }
         });
         jMenu1.add(newTabMenuItem);
+        jMenu1.add(jSeparator1);
 
         jMenuItem2.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_Q, java.awt.event.InputEvent.CTRL_MASK));
         jMenuItem2.setText("Exit");
@@ -342,7 +441,7 @@ public final class Frame2 extends javax.swing.JFrame {
 
         jMenuBar1.add(jMenu1);
 
-        jMenu2.setText("Edit");
+        jMenu2.setText("[0 sec]");
         jMenu2.setEnabled(false);
         jMenuBar1.add(jMenu2);
 
@@ -362,6 +461,24 @@ public final class Frame2 extends javax.swing.JFrame {
         });
         jMenu3.add(jMenuItem3);
 
+        randomPlayItem.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_R, java.awt.event.InputEvent.CTRL_MASK));
+        randomPlayItem.setText("Random Loop");
+        randomPlayItem.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                randomPlayItemActionPerformed(evt);
+            }
+        });
+        jMenu3.add(randomPlayItem);
+
+        pauseItem.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_SPACE, java.awt.event.InputEvent.CTRL_MASK));
+        pauseItem.setText("Pause");
+        pauseItem.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                pauseItemActionPerformed(evt);
+            }
+        });
+        jMenu3.add(pauseItem);
+
         jMenuItem6.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_S, java.awt.event.InputEvent.CTRL_MASK));
         jMenuItem6.setText("Stop");
         jMenuItem6.addActionListener(new java.awt.event.ActionListener() {
@@ -370,6 +487,43 @@ public final class Frame2 extends javax.swing.JFrame {
             }
         });
         jMenu3.add(jMenuItem6);
+        jMenu3.add(jSeparator2);
+
+        delayInc.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_EQUALS, java.awt.event.InputEvent.CTRL_MASK));
+        delayInc.setText("Delay ++");
+        delayInc.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                delayIncActionPerformed(evt);
+            }
+        });
+        jMenu3.add(delayInc);
+
+        delayDec.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_MINUS, java.awt.event.InputEvent.CTRL_MASK));
+        delayDec.setText("Delay --");
+        delayDec.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                delayDecActionPerformed(evt);
+            }
+        });
+        jMenu3.add(delayDec);
+
+        fontInc.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_EQUALS, java.awt.event.InputEvent.SHIFT_MASK | java.awt.event.InputEvent.CTRL_MASK));
+        fontInc.setText("Font Size ++");
+        fontInc.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                fontIncActionPerformed(evt);
+            }
+        });
+        jMenu3.add(fontInc);
+
+        fontDec.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_MINUS, java.awt.event.InputEvent.SHIFT_MASK | java.awt.event.InputEvent.CTRL_MASK));
+        fontDec.setText("Font Size --");
+        fontDec.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                fontDecActionPerformed(evt);
+            }
+        });
+        jMenu3.add(fontDec);
 
         jMenuBar1.add(jMenu3);
 
@@ -425,19 +579,25 @@ public final class Frame2 extends javax.swing.JFrame {
     private void jMenuItem3ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenuItem3ActionPerformed
 
         Runnable runnable = new Runnable() {
-            public void run() {
+            public void run_() {
                 try {
-                    play = true;
-                    playMP3s();
-                    refreshTree();
+                    playAction();
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
             }
+
         };
         new Thread(runnable).start();
         // TODO add your handling code here:
     }//GEN-LAST:event_jMenuItem3ActionPerformed
+
+    public void playAction() {
+        play = true;
+        pause = false;
+        playMP3s(false);
+        refreshTree();
+    }
 
     private void jMenuItem5ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenuItem5ActionPerformed
         JOptionPane.showMessageDialog(this,
@@ -460,16 +620,16 @@ public final class Frame2 extends javax.swing.JFrame {
 
     }
 
-    public void openFile(File file) {
+    public EditorPanel openFile(File file) {
         BufferedReader br = null;
         try {
             file = file.getAbsoluteFile();
             if (G.openFiles.contains(file)) {
                 //JOptionPane.showMessageDialog(null, "Error: You cannot have a file opened twice!", "Error", JOptionPane.ERROR_MESSAGE);
-                return;
+                return null;
             }
             if (!file.exists()) {
-                return;
+                return null;
             }
             addPanel();
             EditorPanel pan = getActiveTab();
@@ -487,6 +647,7 @@ public final class Frame2 extends javax.swing.JFrame {
             updateTabTitle(getTabTitle(pan), pan, tabPane.getSelectedIndex());
             pan.txt.setText(new Scanner(file).useDelimiter("\\A").next());
             pan.monitor = true;
+            return pan;
         } catch (Exception ex) {
             Logger.getLogger(Frame2.class.getName()).log(Level.SEVERE, null, ex);
         } finally {
@@ -498,7 +659,7 @@ public final class Frame2 extends javax.swing.JFrame {
 //                Logger.getLogger(Frame2.class.getName()).log(Level.SEVERE, null, ex);
 //            }
         }
-
+        return null;
     }//GEN-LAST:event_jMenuItem1ActionPerformed
 
     public String getTabTitle(EditorPanel pan) {
@@ -508,25 +669,14 @@ public final class Frame2 extends javax.swing.JFrame {
         return String.format("%s [%s]", pan.file.getName(), pan.getLanguage());
     }
 
-    private void lstMouseClicked(final java.awt.event.MouseEvent evt) {//GEN-FIRST:event_lstMouseClicked
-
-        if (evt.getClickCount() == 1) {
-        } else if (evt.getClickCount() == 2) {
-
-            java.awt.EventQueue.invokeLater(new Runnable() {
-                @Override
-                public void run() {
-                    new Worker(getActiveTab().la_).play(new File(((JList) evt.getSource()).getSelectedValue().toString()));
-
-                    refreshFavorites();
-                }
-            });
-        }
-    }//GEN-LAST:event_lstMouseClicked
-
     private void jMenuItem6ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenuItem6ActionPerformed
+        stopAction();
 
+    }
+
+    public void stopAction() {
         play = false;
+        pause = false;
         refreshTree();
         refreshFavorites();
 
@@ -567,7 +717,7 @@ public final class Frame2 extends javax.swing.JFrame {
                 + "All you other Slim Shadys are just imitating\n"
                 + "So won't the real Slim Shady please stand up,\n"
                 + "Please stand up, please stand up?\n"
-                + "Alrighty? You can sit down now. That was rhetorical.\n"
+                + "Alrighty? You can sit down now. That was rhetorical. \n"
                 + "\n"
                 + "You can play this again by simultaniously pressing CONTROL and P\n"
                 + " or by choosing PLAY from the COMMAND menu.\n"
@@ -576,16 +726,139 @@ public final class Frame2 extends javax.swing.JFrame {
                 + "you may do so in the language menu.");
         getActiveTab().la_ = "en_gb";
         updateTabTitle("English/UK Hood", getActiveTab(), tabPane.getSelectedIndex());
-        playMP3s();
+        playMP3s(false);
 // TODO add your handling code here:
     }//GEN-LAST:event_jMenuItem8ActionPerformed
+
+    private void randomPlayItemActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_randomPlayItemActionPerformed
+
+        Runnable runnable = new Runnable() {
+            public void run_() {
+                try {
+                    playRandAction();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        };
+        new Thread(runnable).start();
+
+// TODO add your handling code here:
+    }//GEN-LAST:event_randomPlayItemActionPerformed
+
+    public void playRandAction() {
+        play = true;
+        pause = false;
+        playMP3s(true);
+        refreshTree();
+    }
+
+    private void delayIncActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_delayIncActionPerformed
+
+        if (delay < 2000) {
+            delay += 250;
+        } else if (delay < 30000) {
+            delay += 1000;
+        }
+        jMenu2.setText(String.format("[%s sec]", delay / 1000.0));
+
+// TODO add your handling code here:
+    }//GEN-LAST:event_delayIncActionPerformed
+
+    private void delayDecActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_delayDecActionPerformed
+
+        if (delay < 2500) {
+            delay -= 250;
+        } else {
+            delay -= 1000;
+        }
+        if (delay < 1) {
+            delay = 1;
+        }
+        jMenu2.setText(String.format("[%s sec]", delay / 1000.0));
+        // TODO add your handling code here:
+    }//GEN-LAST:event_delayDecActionPerformed
+
+    private void pauseItemActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_pauseItemActionPerformed
+
+        pause = !pause;
+
+    }//GEN-LAST:event_pauseItemActionPerformed
+
+    private void tabPaneMouseWheelMoved(java.awt.event.MouseWheelEvent evt) {//GEN-FIRST:event_tabPaneMouseWheelMoved
+
+// TODO add your handling code here:
+    }//GEN-LAST:event_tabPaneMouseWheelMoved
+    public void tabPaneMouseScroll(java.awt.event.MouseWheelEvent evt) {
+        if (evt.isControlDown()) {
+            if (evt.getUnitsToScroll() > 0) {
+                fontIncActionPerformed(null);
+            } else {
+                fontDecActionPerformed(null);
+            }
+        }
+    }
+
+
+    private void fontIncActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_fontIncActionPerformed
+        fontIncAction();
+
+    }
+
+    public void fontIncAction() {
+        EditorPanel p = getActiveTab();
+        p.fontSize = Math.min(p.fontSize + 1, FONT_SIZES.length - 1);
+        p.txt.setFont(new Font("Arial Unicode", Font.PLAIN, FONT_SIZES[p.fontSize]));
+
+        p.invalidate();
+        p.repaint();
+        p.validate();
+        System.out.printf("Font+: %s -  %s [%s]\n", p.tabName, FONT_SIZES[p.fontSize], p.fontSize);
+
+    }//GEN-LAST:event_fontIncActionPerformed
+
+    private void fontDecActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_fontDecActionPerformed
+        fontDecAction();
+
+    }
+
+    public void fontDecAction() {
+        EditorPanel p = getActiveTab();
+        p.fontSize = Math.max(p.fontSize - 1, 0);
+        p.txt.setFont(new Font("Arial Unicode", Font.PLAIN, FONT_SIZES[p.fontSize]));
+        p.invalidate();
+        p.repaint();
+        p.validate();
+        System.out.printf("Font-: %s -  %s [%s]\n", p.tabName, FONT_SIZES[p.fontSize], p.fontSize);
+
+    }//GEN-LAST:event_fontDecActionPerformed
+
+    private void saveCurrentTabActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_saveCurrentTabActionPerformed
+
+        saveFile(getActiveTab(), false);
+
+    }//GEN-LAST:event_saveCurrentTabActionPerformed
+
+    private void saveAllTabsActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_saveAllTabsActionPerformed
+        for (EditorPanel p : tabList) {
+            if (p.modified || p.file == null) {
+                saveFile(p, false);
+            }
+        }
+    }//GEN-LAST:event_saveAllTabsActionPerformed
+
+    private void saveAsActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_saveAsActionPerformed
+
+        saveFile(getActiveTab(), true);
+
+    }//GEN-LAST:event_saveAsActionPerformed
 
     /**
      * @param args the command line arguments
      */
     public static void main(String args[]) {
         java.awt.EventQueue.invokeLater(new Runnable() {
-            public void run() {
+            public void run_() {
                 try {
                     try {
                         for (LookAndFeelInfo info : UIManager.getInstalledLookAndFeels()) {
@@ -595,17 +868,22 @@ public final class Frame2 extends javax.swing.JFrame {
                             }
                         }
                     } catch (Exception e) {
-    // If Nimbus is not available, you can set the GUI to another look and feel.
+                        // If Nimbus is not available, you can set the GUI to another look and feel.
                     }
                     new Frame2().setVisible(true);
                 } catch (Exception ex) {
                     Logger.getLogger(Frame2.class.getName()).log(Level.SEVERE, null, ex);
+                    System.exit(1);
                 }
             }
         });
     }
     // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JMenuItem delayDec;
+    private javax.swing.JMenuItem delayInc;
     private javax.swing.JMenu favorites;
+    private javax.swing.JMenuItem fontDec;
+    private javax.swing.JMenuItem fontInc;
     private javax.swing.JMenu jMenu1;
     private javax.swing.JMenu jMenu2;
     private javax.swing.JMenu jMenu3;
@@ -624,17 +902,25 @@ public final class Frame2 extends javax.swing.JFrame {
     private javax.swing.JMenuItem jMenuItem8;
     private javax.swing.JPanel jPanel1;
     private javax.swing.JPopupMenu jPopupMenu1;
-    private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JScrollPane jScrollPane2;
-    private javax.swing.JScrollPane jScrollPane3;
+    private javax.swing.JScrollPane jScrollPane5;
+    private javax.swing.JScrollPane jScrollPane6;
+    private javax.swing.JPopupMenu.Separator jSeparator1;
+    private javax.swing.JPopupMenu.Separator jSeparator2;
     private javax.swing.JSplitPane jSplitPane1;
     private javax.swing.JSplitPane jSplitPane2;
     private javax.swing.JToolBar jToolBar1;
     private javax.swing.JTree jTree1;
     private javax.swing.JMenu lang;
+    private javax.swing.JScrollPane leftScrollPane;
     private javax.swing.JList lst;
     private javax.swing.JMenuItem newTabMenuItem;
-    private javax.swing.JTabbedPane tabPane;
+    private javax.swing.JMenuItem pauseItem;
+    private javax.swing.JMenuItem randomPlayItem;
+    private javax.swing.JMenuItem saveAllTabs;
+    private javax.swing.JMenuItem saveAs;
+    private javax.swing.JMenuItem saveCurrentTab;
+    public javax.swing.JTabbedPane tabPane;
     // End of variables declaration//GEN-END:variables
 
     String format(String s) {
@@ -709,103 +995,86 @@ public final class Frame2 extends javax.swing.JFrame {
         return new Worker(getActiveTab().la_).getAndPlay((s), false);
     }
 
-    public void playMP3s() {
+    public void playMP3s(final boolean random) {
+        System.out.println("STARTING..." + new Date().toLocaleString());
         final LinkedList files = new LinkedList();
+        final HashSet files2 = new HashSet();
 //        Pattern pat = Pattern.compile("([\r\n\\,\\;?!]|[\\,\\.\\;?!][\\s]|[^\r\n\\,\\;?!]+)");
         Pattern pat = Pattern.compile("([\r\n]|[^\r\n]+)");
         Matcher m = pat.matcher(getActiveTab().txt.getText());
         String s = getActiveTab().txt.getText();
         int a = 0, b;
 
-        DefaultListModel listModel = new DefaultListModel();/*{
-
-         @Override
-         public Object getElementAt(int i) {
-         try {
-         return files.get(i);
-         } catch (Exception e) {
-         return null;
-         }
-         }
-
-         @Override
-         public int size() {
-         return files.size(); //To change body of generated methods, choose Tools | Templates.
-         }
-
-         @Override
-         public Object get(int i) {
-         return files.get(i); //To change body of generated methods, choose Tools | Templates.
-         }
-            
-         };*/
+        DefaultListModel listModel = new DefaultListModel();
+        listModel.ensureCapacity(1000);
 
         lst.setModel(listModel);
-        Runnable runnable = new Runnable() {
+        Runnable consumerThread = new Runnable() {
+            Object[] playlist;
+
             @Override
-            public void run() {
-                try {
-                    Thread.sleep(500);//delay initial playing
-                } catch (InterruptedException ex) {
-                }
+            public void run_() {
+                zzzsleep(500);//delay initial playing
                 while (play) {
-                    try {
-
-                        if (files.size() > 0) {
-                            Object[] playlist;
-                            synchronized (files) {
-                                playlist = files.toArray(new Object[]{});
-                                for (Object f : playlist) {
-                                    files.removeFirst();
-                                }
-                            }
-                            for (Object f : playlist) {
-
-                                while (!play) {
-                                    return;
-                                }
-                                if (f instanceof File) {
-                                    try {
-                                        try {
-                                            lst.setSelectedValue(getPlaylistStringForFile(((File) f)), true);
-                                        } catch (Exception e) {
-                                            System.out.println("ERROR: list file=" + ((File) f).getAbsolutePath());
-                                        }
-                                        playMP3((File) f);
-//                                        Thread.sleep(500);
-                                    } catch (Exception e) {
-                                        e.printStackTrace();
-                                    }
-                                } else if (f instanceof Long) {
-                                    try {
-                                        Thread.sleep((Long) f);
-                                    } catch (InterruptedException ex) {
-                                        //Logger.getLogger(Frame2.class.getName()).log(Level.SEVERE, null, ex);
-                                    }
-                                } else {
-                                    play = false;
-                                    return;
-                                }
-                            }
-                        }
-                    } catch (Exception e) {
-                        e.printStackTrace();
+                    if (files.size() <= 0) {
+                        zzzsleep(10);//wait for producer
+                        continue;
                     }
-                }
-            }
-        };
-        Thread t = new Thread(runnable);
+                    synchronized (files) {
+                        if (random) {
+                            Collections.shuffle(files, RAND);
+                        }
+                        playlist = files.toArray(new Object[]{});
+                        files2.addAll(files);
+                        for (Object f : playlist) {
+                            files.removeFirst();
+                        }
+                    }
+                    for (Object f : playlist) {
+                        if (!play) {//TODO: why did I do this?
+                            return;
+                        }
+                        try {
+                            if (f instanceof File) {
+                                try {
+                                    lst.setSelectedValue(getPlaylistStringForFile(((File) f)), true);
+                                } catch (Exception e) {
+                                    System.out.println("ERROR: list file=" + ((File) f).getAbsolutePath());
+                                }
+                                playMP3((File) f);
+                                zzzsleep(delay);
+                            } else if (f instanceof Long) {
+                                //zzzsleep((Long) f);//scripted delay
+                            } else if (!random) {
+                                play = false;
+                                pause = false;
+                                lst.invalidate();
+                                lst.repaint();
+                                lst.validate();
+                                System.out.println("stopped!");
+                                return;
+                            }
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    }//END for each item in playlist
+                    if (random && files.size() <= 0) {
+                        files.addAll(files2);
+                    }
+                }//END while (play)
+            }//END run()
+        };//runnable consumer thread
+        Thread t = new Thread(consumerThread);
         t.start();
         String str;
         char ch;
         File file;
-        while (/* a < s.length() */m.find()) {
+        while (/* a < s.length() */m.find() && play) {
 
             str = m.group();
             if (str.length() == 1 || str.length() == 2) {
                 ch = str.charAt(0);
-                // synchronized (files) 
-                {
+                synchronized (files) {
                     if (ch == ' ') {
                         files.addLast(10L);
                     } else if (ch == '\r') {
@@ -827,29 +1096,32 @@ public final class Frame2 extends javax.swing.JFrame {
                         files.addLast(20L);
                         files.addLast(file);
                         files.addLast(20L);
+//                        lst.invalidate();
                         listModel.addElement(getPlaylistStringForFile(file));
-                        lst.invalidate();
-                        lst.repaint();
-                        lst.validate();
+//                        lst.repaint();
+//                        lst.validate();
                     }
                 }
             } else if (str.trim().length() > 1) {
                 //str=format(str);
                 file = SIMULATION ? new File(str) : getMP3(str);
-                //synchronized (files) 
-                {
+                synchronized (files) {
                     files.addLast(file);
                     listModel.addElement(getPlaylistStringForFile(file));
                     lst.invalidate();
+//                    lst.setEnabled(false);
                     lst.repaint();
                     lst.validate();
+
+//                    lst.setEnabled(true);
                 }
-            }
-        }
+            }//END if
+            zzzsleep(10);
+        }//END while
         synchronized (files) {
             files.addLast("END");
         }
-
+        System.out.println("done!  " + new Date().toLocaleString());
     }
 
     void init() {
@@ -886,7 +1158,7 @@ public final class Frame2 extends javax.swing.JFrame {
             @Override
             public void valueChanged(final TreeSelectionEvent e) {
                 Runnable runnable = new Runnable() {
-                    public void run() {
+                    public void run_() {
                         try {
                             //JTree node = ((FileTree) e.getSource()).root;
                             Object[] path = e.getNewLeadSelectionPath().getPath();
@@ -917,7 +1189,8 @@ public final class Frame2 extends javax.swing.JFrame {
             } else {
                 tree = new FileTree(new File("CACHE\\"), listener);
             }
-            jScrollPane3.getViewport().add(tree);
+//            leftScrollPane.getViewport().removeAll();
+            leftScrollPane.getViewport().add(tree);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -958,22 +1231,22 @@ public final class Frame2 extends javax.swing.JFrame {
     }
 
     public String getPlaylistStringForFile(File file) {
-        return String.format("%-20s  %5s KB", file.getName(), file.length() / 1024);
+        return String.format("%5s KB  %s", file.length() / 1024, file.getName());
     }
 
     public class TabComponent extends JPanel {
 
         private final JTabbedPane pane;
 
-        public TabComponent(final JTabbedPane pane) {
+        public TabComponent(final JTabbedPane pan) {
             //unset default FlowLayout' gaps
             super(new GridBagLayout());
-            if (pane == null) {
+            if (pan == null) {
                 throw new NullPointerException("TabbedPane is null");
             }
 //            this.setSize(100, 14);
 //            this.setPreferredSize(new Dimension(100, 14));
-            this.pane = pane;
+            this.pane = pan;
             setOpaque(false);
             GridBagConstraints gbc = new GridBagConstraints();
             gbc.weightx = 100;
@@ -985,14 +1258,15 @@ public final class Frame2 extends javax.swing.JFrame {
             //make JLabel read titles from JTabbedPane
             JLabel label = new JLabel() {
                 public String getText() {
-                    int i = pane.indexOfTabComponent(TabComponent.this);
+                    int i = pan.indexOfTabComponent(TabComponent.this);
                     if (i != -1) {
-                        return pane.getTitleAt(i);
+                        return pan.getTitleAt(i);
                     }
                     return null;
                 }
             };
             label.setFont(new Font("Arial Unicode", Font.PLAIN, 11));
+            label.setPreferredSize(new Dimension(120, 15));
             add(label, gbc);
             gbc.gridx = 2;
             //add more space between the label and the button
@@ -1026,12 +1300,7 @@ public final class Frame2 extends javax.swing.JFrame {
                 SwingUtilities.invokeLater(new Runnable() {
 
                     @Override
-                    public void run() {
-//                        try {
-////                            Thread.sleep(1500);
-//                        } catch (InterruptedException ex) {
-//                            Logger.getLogger(Frame2.class.getName()).log(Level.SEVERE, null, ex);
-//                        }
+                    public void run_() {
                         setUI(new BasicButtonUI());//way too slow
                     }
                 });

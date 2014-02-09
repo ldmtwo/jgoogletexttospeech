@@ -5,6 +5,8 @@
  */
 package org.ldtwo.GoTTS;
 
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseWheelEvent;
 import java.io.File;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
@@ -14,12 +16,13 @@ import javax.swing.event.DocumentListener;
  * @author ldtwo
  */
 public class EditorPanel extends javax.swing.JPanel implements DocumentListener {
-
+    
     public String tabName = "English";
     public File file = null;
     public String la_ = "en_gb";
-    public boolean modified=false;
-    public boolean monitor=false;
+    public boolean modified = false;
+    public boolean monitor = false;
+    public int fontSize = 4;
 
     /**
      * Creates new form EditorPanel
@@ -27,8 +30,17 @@ public class EditorPanel extends javax.swing.JPanel implements DocumentListener 
     public EditorPanel() {
         initComponents();
         txt.getDocument().addDocumentListener(this);
+        addMouseWheelListener(new MouseAdapter() {
+            
+            @Override
+            public void mouseWheelMoved(MouseWheelEvent e) {
+                Frame2.ths.tabPaneMouseScroll(e);
+            }
+            
+        });
     }
-    public String getLanguage(){
+
+    public String getLanguage() {
         return G.LA_LANGUAGE.get(la_);
     }
 
@@ -41,6 +53,7 @@ public class EditorPanel extends javax.swing.JPanel implements DocumentListener 
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
 
+        jScrollPane1 = new javax.swing.JScrollPane();
         txt = new javax.swing.JTextArea();
 
         setLayout(new java.awt.GridLayout(1, 0));
@@ -49,28 +62,41 @@ public class EditorPanel extends javax.swing.JPanel implements DocumentListener 
         txt.setLineWrap(true);
         txt.setRows(5);
         txt.setText("Thank you for trying JGoogle TTS a.k.a. GoTTS.\n\nhttp://code.google.com/p/jgoogletexttospeech/\n\nHello, how are you today?\nBonjour, comment allez-vous aujourd'hui?\nHola, ¿cómo estás hoy?\nHallo, wie geht es Ihnen heute?\nHej, hur mår du idag?\n你好\n\n\n\n");
-        add(txt);
+        jScrollPane1.setViewportView(txt);
+
+        add(jScrollPane1);
     }// </editor-fold>//GEN-END:initComponents
 
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JScrollPane jScrollPane1;
     public javax.swing.JTextArea txt;
     // End of variables declaration//GEN-END:variables
 
     @Override
     public void insertUpdate(DocumentEvent e) {
-       
-       if(monitor)modified=true;
+        
+        if (monitor&&!modified) {
+            modified = true;
+            updateTab();
+        }
     }
-
+    
     @Override
     public void removeUpdate(DocumentEvent e) {
-       
-       if(monitor)modified=true;
+        
+        if (monitor&&!modified) {
+            modified = true;
+            updateTab();
+        }
     }
-
+    
     @Override
     public void changedUpdate(DocumentEvent e) {
-       if(monitor)modified=true;
+        if (monitor&&!modified) {
+            modified = true;
+            updateTab();
+        }
     }
+    public void updateTab(){}
 }

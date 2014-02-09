@@ -8,9 +8,11 @@ package org.ldtwo.GoTTS;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.PrintStream;
+import java.security.SecureRandom;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
+import java.util.Random;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.JFileChooser;
@@ -21,12 +23,16 @@ import javax.swing.JFileChooser;
  */
 public class G {
 
+    public static boolean CONFIRM_CLOSE = false;
+    public static final int[] FONT_SIZES = {5, 8, 10, 11, 12, 14, 18, 24, 36, 48};
+    public final static Random RAND = new SecureRandom();
     public static HashSet<File> openFiles = new HashSet<File>();
     public static LinkedList<EditorPanel> tabList = new LinkedList<EditorPanel>();
-
+    public static long delay = 1;
     public static final String DELIM = "[\\n]", ANTIDELIM = "[^\\n]";
     public static final String DELIM2 = "[,.\\n]", ANTIDELIM2 = "[^,.\\n]";
     public static boolean play = true;
+    public static boolean pause = false;
     public final static boolean SIMULATION = false;
     static final HashMap<String, String> LA_LANGUAGE = new HashMap<String, String>();
     static final HashMap<String, String> LANGUAGE_LA = new HashMap<String, String>();
@@ -167,17 +173,24 @@ public class G {
 
     }
 
-    public static boolean saveFile(EditorPanel p) {
-        if (p.file == null) {
+    public static boolean saveFile(EditorPanel p, boolean askForFileName) {
+        if (p.file == null||askForFileName) {
+            int selectedIndex = Frame2.ths.tabPane.getSelectedIndex();
+            Frame2.ths.tabPane.setSelectedComponent(p);//temporarily switch to current tab
             JFileChooser fc = new JFileChooser();
-            fc.showOpenDialog(null);
+            fc.showSaveDialog(null);
             p.file = fc.getSelectedFile();
             if (p.file == null) {
                 return false;
             }
+            Frame2.ths.tabPane.setSelectedIndex(selectedIndex);
         }
-
-        return !textToFile(p.file, p.txt.getText());
+        if (textToFile(p.file, p.txt.getText())) {//write file
+            return false;
+        }
+        p.modified = false;
+        p.updateTab();
+        return true;
     }
 
     public static boolean textToFile(File file, String text) {
@@ -202,5 +215,13 @@ public class G {
             return true;
         }
         return false;
+    }
+
+    public static void zzzsleep(long l) {
+        try {
+            Thread.sleep(l);
+        } catch (InterruptedException ex) {
+
+        }
     }
 }

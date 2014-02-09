@@ -20,6 +20,8 @@ import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.SourceDataLine;
+import static org.ldtwo.GoTTS.G.pause;
+import static org.ldtwo.GoTTS.G.play;
 
 /**
  *
@@ -39,7 +41,7 @@ public class Worker {
 
     public File getAndPlay(String query, boolean play) {
         try {
-            System.out.printf("getAndPlay: query=%s\n", query);
+            //System.out.printf("getAndPlay: query=%s\n", query);
             query = query.replaceAll("[?]", " ").trim();
             while (query.contains("  ")) {
                 query = query.replace("  ", " ");
@@ -49,7 +51,7 @@ public class Worker {
                 fname = query.replaceAll("[\\s]", " ").trim();
                 String[] arr = query.split("\t");
                 query = arr[0];
-            System.out.printf("getAndPlay: query=%s; file=%s\n", query, fname);
+            //System.out.printf("getAndPlay: query=%s; file=%s\n", query, fname);
             }
             SocketClient socket = new SocketClient(fname);
             socket.path.setText("translate_tts?ie=UTF-8&tl=" + language + "&q=" + URLEncoder.encode(query, "UTF-8"));
@@ -94,24 +96,10 @@ public class Worker {
         }
         return null;
     }
-    byte[] tmpBuffer = new byte[4096];
+    byte[] tmpBuffer = new byte[64];
 
     public void play(File file) {
         try {
-
-//            String data = "";
-//            FileInputStream is = new FileInputStream(file);
-//            int len;
-//            while((len=is.read(tmpBuffer))>=0)
-//                data += new String(tmpBuffer,0,len);
-////System.out.println(data);
-////            data += new String(tmpBuffer);
-//            if (data.contains("html")) {
-//                JOptionPane.showMessageDialog(null,
-//                        "An error ocurred retrieving the file");
-//                System.exit(1);
-//            }
-
 
             AudioInputStream in = AudioSystem.getAudioInputStream(file);
             AudioInputStream din;
@@ -145,9 +133,15 @@ public class Worker {
             line.start();
             int nBytesRead = 0, nBytesWritten = 0;
             while (nBytesRead != -1) {
+                while(pause)G.zzzsleep(300);
+                if(!play)break;
+//                G.zzzsleep(1);
                 nBytesRead = ais.read(tmpBuffer, 0, tmpBuffer.length);
+                while(pause)G.zzzsleep(300);
                 if (nBytesRead != -1) {
                     nBytesWritten = line.write(tmpBuffer, 0, nBytesRead);
+//                    for(int i=0;i<nBytesRead;i+=20)
+//                        line.write(tmpBuffer, i, 20);
                 }
             }
             // Stop
@@ -161,8 +155,10 @@ public class Worker {
     private SourceDataLine getLine(AudioFormat audioFormat) throws LineUnavailableException {
         SourceDataLine res;
         DataLine.Info info = new DataLine.Info(SourceDataLine.class, audioFormat);
+        
         res = (SourceDataLine) AudioSystem.getLine(info);
         res.open(audioFormat);
+        
         return res;
     }
 
@@ -271,7 +267,7 @@ public class Worker {
         return null;
     }
 
-    private class SocketClient implements Runnable {
+    private class SocketClient implements java.lang.Runnable {
 
         public TextField address, path;
         Thread thread;
@@ -295,7 +291,7 @@ public class Worker {
                 ourSocket = new Socket(address.getText(), 80);
                 InputStream inStream = new DataInputStream(ourSocket.getInputStream());
                 DataOutputStream outStream = new DataOutputStream(ourSocket.getOutputStream());
-                System.out.println("1)   http://translate.google.com/" + path.getText());
+                //System.out.println("1)   http://translate.google.com/" + path.getText());
 //                URI uri = new URI("http://translate.google.com/"+ path.getText().trim().replace(" ", "+"));
 //
 ////                URL u = new URL(uri.toASCIIString());
@@ -324,7 +320,7 @@ public class Worker {
                         + "\r\n";
 //                requestString ="GET "+ uri.toASCIIString() + " HTTP/1.0\r\n" + "\r\n";
 //                System.out.println(uri.toASCIIString());
-                System.out.println("2)    " + requestString);
+               // System.out.println("2)    " + requestString);
                 outStream.writeBytes(requestString);
                 outStream.flush();
 

@@ -61,7 +61,7 @@ public class FileTree extends JPanel {
         }
 //        Vector ol = new Vector();
 //        String[] tmp = dir.list();
-        System.out.println(dir);
+        //System.out.println(dir);
         File[] files=dir.listFiles();
         List<File> list=Arrays.asList(files);
 //        for (int i = 0; i < tmp.length; i++) {
@@ -88,10 +88,10 @@ public class FileTree extends JPanel {
 //                 curDir.add(new DefaultMutableTreeNode(list.get(i).getName()));
             }
         }
-        // Pass two: for files.
-        for (int fnum = 0; fnum < files.length; fnum++) {
-            if(!files[fnum].isDirectory()&&files[fnum].getName().toLowerCase().endsWith(".mp3"))
-            curDir.add(new DefaultMutableTreeNode(files[fnum].getName()));
+        for (File file : files) {
+            if (!file.isDirectory() && file.getName().toLowerCase().endsWith(".mp3")) {
+                curDir.add(new DefaultMutableTreeNode(file.getName()));
+            }
         }
         return curDir;
     }
