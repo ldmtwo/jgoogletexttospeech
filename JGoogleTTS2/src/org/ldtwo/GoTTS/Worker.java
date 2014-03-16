@@ -9,8 +9,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.io.*;
 import java.net.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import javax.sound.sampled.*;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
@@ -42,7 +40,7 @@ public class Worker {
     public File getAndPlay(String query, boolean play) {
         try {
             //System.out.printf("getAndPlay: query=%s\n", query);
-            query = query.replaceAll("[?]", " ").trim();
+            query = query.replaceAll("[?\"]", " ").trim();
             while (query.contains("  ")) {
                 query = query.replace("  ", " ");
             }
@@ -187,12 +185,14 @@ public class Worker {
             }
 //            System.out.println("MP3 @ " + tmpFile.getAbsolutePath());
             return tmpFile;
-        } catch (MalformedURLException mue) {
-            mue.printStackTrace();
+//        } catch (MalformedURLException mue) {
+//            mue.printStackTrace();
+//            // System.exit(1);
+//        } catch (IOException ioe) {
+//            ioe.printStackTrace();
             // System.exit(1);
-        } catch (IOException ioe) {
-            ioe.printStackTrace();
-            // System.exit(1);
+        }catch(Exception e){
+            e.printStackTrace();
         } finally {
             try {
                 is.close();

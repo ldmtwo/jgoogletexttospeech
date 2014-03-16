@@ -869,7 +869,7 @@ public final class Frame2 extends javax.swing.JFrame {
         java.awt.EventQueue.invokeLater(new java.lang.Runnable() {
             public void run() {
                 try {
-                    new CardFrame().setVisible(true);
+                    new CardFrame(ths).setVisible(true);
                 } catch (Exception ex) {
                     Logger.getLogger(CardFrame.class.getName()).log(Level.SEVERE, null, ex);
                 }
@@ -1066,7 +1066,11 @@ public final class Frame2 extends javax.swing.JFrame {
                                 } catch (Exception e) {
                                     System.out.println("ERROR: list file=" + ((File) f).getAbsolutePath());
                                 }
-                                playMP3((File) f);
+                                try {
+                                    playMP3((File) f);
+                                } catch (Exception e) {
+                                    e.printStackTrace();
+                                }
                                 zzzsleep(delay);
                             } else if (f instanceof Long) {
                                 //zzzsleep((Long) f);//scripted delay
@@ -1130,15 +1134,18 @@ public final class Frame2 extends javax.swing.JFrame {
             } else if (str.trim().length() > 1) {
                 //str=format(str);
                 file = SIMULATION ? new File(str) : getMP3(str);
-                synchronized (files) {
-                    files.addLast(file);
-                    listModel.addElement(getPlaylistStringForFile(file));
-                    lst.invalidate();
+                try {
+                    synchronized (files) {
+                        files.addLast(file);
+                        listModel.addElement(getPlaylistStringForFile(file));
+                        lst.invalidate();
 //                    lst.setEnabled(false);
-                    lst.repaint();
-                    lst.validate();
+                        lst.repaint();
+                        lst.validate();
 
 //                    lst.setEnabled(true);
+                    }
+                } catch (Exception e) {
                 }
             }//END if
             zzzsleep(10);

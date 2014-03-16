@@ -26,6 +26,7 @@ import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.WindowConstants;
 import javax.swing.plaf.LabelUI;
+import org.ldtwo.GoTTS.Frame2;
 
 /**
  *
@@ -34,21 +35,23 @@ import javax.swing.plaf.LabelUI;
 public class CardFrame extends javax.swing.JFrame {
 
     public static String path = "C:\\Users\\Larry\\Desktop\\French class\\vocab";
-    public static File[] files = null;
-    public static LinkedList<Term> deck = new LinkedList<>();
-    public static boolean useFront = true;
-    public static Term currentTerm = null;
-    public static long startTime = System.currentTimeMillis();
+    public  File[] files = null;
+    public  LinkedList<Term> deck = new LinkedList<>();
+    public  boolean useFront = true;
+    public  Term currentTerm = null;
+    public  long startTime = System.currentTimeMillis();
 
     final double alpha = 0.3;
     final double beta = 0.6;
+    Frame2 player;
 
     /**
      * Creates new form CardFrame
      *
      * @throws java.lang.Exception
      */
-    public CardFrame() throws Exception {
+    public CardFrame(Frame2 f2) throws Exception {
+        player = f2;
         initComponents();
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         bottomLbl.setUI(new LabelUI() {
@@ -75,10 +78,10 @@ public class CardFrame extends javax.swing.JFrame {
                                 bottomLbl.getHeight() / 2 + 5 + (i - 2) * 20);
                     }
                 } else {
-                    
-                        g.drawString(arr[0],
-                                50,
-                                bottomLbl.getHeight() / 2 + 5 + ( 0) * 20);
+
+                    g.drawString(arr[0],
+                            50,
+                            bottomLbl.getHeight() / 2 + 5 + (0) * 20);
                 }
 
                 if (jToggleButton1.isSelected()) {
@@ -170,19 +173,39 @@ public class CardFrame extends javax.swing.JFrame {
                 while (true) {
 
                     try {
-                        Thread.sleep(100);
-                        if (System.currentTimeMillis() - startTime < 10000) {
+                        Thread.sleep(200);
+                        if (System.currentTimeMillis() - startTime < 15000) {
                             continue;
                         }
+                        final double p=0.09, m=1-p;
                         final Color red = Color.red;
-                        final Color c = scoreZero.getBackground();
-                        for (int i = 0; i < 10; i++) {
-                            scoreZero.setBackground(red);
-                            Thread.sleep(100);
-                            scoreZero.setBackground(c);
-                            Thread.sleep(100);
+                        final Color baseColor = scoreZero.getBackground();
+                        Color gradient = baseColor;//gradient
+                        for (int i = 0; i < 4; i++) {
+                            for (int j = 0; j < 40; j++) {
+                                gradient = new Color((int) (gradient.getRed() * m + red.getRed() * p),
+                                        (int) (gradient.getGreen() * m + red.getGreen() *p),
+                                        (int) (gradient.getBlue() * m + red.getBlue() * p));
+                                scoreZero.setBackground(gradient);
+                                Thread.sleep(1000 / 40);
+                            }
+                        if (System.currentTimeMillis() - startTime < 15000) {
+                            break;
                         }
-                        Thread.sleep(7000);
+                            for (int j = 0; j < 40; j++) {
+                                gradient = new Color((int) (gradient.getRed() * m + baseColor.getRed() * p),
+                                        (int) (gradient.getGreen() * m + baseColor.getGreen() * p),
+                                        (int) (gradient.getBlue() * m + baseColor.getBlue() * p));
+                                scoreZero.setBackground(gradient);
+                                Thread.sleep(1000 / 40);
+                            }
+//                            scoreZero.setBackground(red);
+//                            Thread.sleep(100);
+//                            scoreZero.setBackground(c);
+//                            Thread.sleep(100);
+                        }
+                            scoreZero.setBackground(baseColor);
+                        Thread.sleep(10000);
                     } catch (Exception ex) {
                         Logger.getLogger(CardFrame.class.getName()).log(Level.SEVERE, null, ex);
                     }
@@ -202,6 +225,9 @@ public class CardFrame extends javax.swing.JFrame {
     public final void show(Term t) {
         topLbl.setText(useFront ? t.left : t.right);
         startTime = System.currentTimeMillis();
+
+//        File f = player.getMP3(topLbl.getText());
+//        player.getPlaylistStringForFile(f);
     }
 
     /**
@@ -499,44 +525,44 @@ public class CardFrame extends javax.swing.JFrame {
 
     }//GEN-LAST:event_jToggleButton1ActionPerformed
 
-    /**
-     * @param args the command line arguments
-     */
-    public static void main(String args[]) {
-        /* Set the Nimbus look and feel */
-        //<editor-fold defaultstate="collapsed" desc=" Look and feel setting code (optional) ">
-        /* If Nimbus (introduced in Java SE 6) is not available, stay with the default look and feel.
-         * For details see http://download.oracle.com/javase/tutorial/uiswing/lookandfeel/plaf.html
-         */
-        try {
-            for (javax.swing.UIManager.LookAndFeelInfo info : javax.swing.UIManager.getInstalledLookAndFeels()) {
-                if ("Nimbus".equals(info.getName())) {
-                    javax.swing.UIManager.setLookAndFeel(info.getClassName());
-                    break;
-                }
-            }
-        } catch (ClassNotFoundException ex) {
-            java.util.logging.Logger.getLogger(CardFrame.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-        } catch (InstantiationException ex) {
-            java.util.logging.Logger.getLogger(CardFrame.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-        } catch (IllegalAccessException ex) {
-            java.util.logging.Logger.getLogger(CardFrame.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-        } catch (javax.swing.UnsupportedLookAndFeelException ex) {
-            java.util.logging.Logger.getLogger(CardFrame.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-        }
-        //</editor-fold>
-
-        /* Create and display the form */
-        java.awt.EventQueue.invokeLater(new Runnable() {
-            public void run() {
-                try {
-                    new CardFrame().setVisible(true);
-                } catch (Exception ex) {
-                    Logger.getLogger(CardFrame.class.getName()).log(Level.SEVERE, null, ex);
-                }
-            }
-        });
-    }
+//    /**
+//     * @param args the command line arguments
+//     */
+//    public static void main(String args[]) {
+//        /* Set the Nimbus look and feel */
+//        //<editor-fold defaultstate="collapsed" desc=" Look and feel setting code (optional) ">
+//        /* If Nimbus (introduced in Java SE 6) is not available, stay with the default look and feel.
+//         * For details see http://download.oracle.com/javase/tutorial/uiswing/lookandfeel/plaf.html
+//         */
+//        try {
+//            for (javax.swing.UIManager.LookAndFeelInfo info : javax.swing.UIManager.getInstalledLookAndFeels()) {
+//                if ("Nimbus".equals(info.getName())) {
+//                    javax.swing.UIManager.setLookAndFeel(info.getClassName());
+//                    break;
+//                }
+//            }
+//        } catch (ClassNotFoundException ex) {
+//            java.util.logging.Logger.getLogger(CardFrame.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+//        } catch (InstantiationException ex) {
+//            java.util.logging.Logger.getLogger(CardFrame.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+//        } catch (IllegalAccessException ex) {
+//            java.util.logging.Logger.getLogger(CardFrame.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+//        } catch (javax.swing.UnsupportedLookAndFeelException ex) {
+//            java.util.logging.Logger.getLogger(CardFrame.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+//        }
+//        //</editor-fold>
+//
+//        /* Create and display the form */
+//        java.awt.EventQueue.invokeLater(new Runnable() {
+//            public void run() {
+//                try {
+//                    new CardFrame().setVisible(true);
+//                } catch (Exception ex) {
+//                    Logger.getLogger(CardFrame.class.getName()).log(Level.SEVERE, null, ex);
+//                }
+//            }
+//        });
+//    }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JLabel bottomLbl;

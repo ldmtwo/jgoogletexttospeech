@@ -15,7 +15,8 @@ public class Term implements Comparable<Term>, Comparator<Term> {
 
     public final String left, right;
     public int views = 0;
-    public double avgTime = 0, recentTime = 0, avgAccuracy = 0;
+    public double avgTime = 1, recentTime = 0, avgAccuracy = 0;
+    public boolean visible=true;
 
     public Term(String left, String right) {
         this.left = left.trim();
@@ -34,7 +35,7 @@ public class Term implements Comparable<Term>, Comparator<Term> {
     public int skillRating() {
         double ret = -1;
         try {
-            ret = 100.0 * (avgAccuracy + 5*avgAccuracy /avgTime);
+            ret = 1000000.0 * (avgAccuracy /(avgTime*avgTime));
         } catch (Exception e) {
         }
         return (int) ret;
