@@ -63,6 +63,7 @@ import javax.swing.event.TreeSelectionEvent;
 import javax.swing.event.TreeSelectionListener;
 import javax.swing.plaf.basic.BasicButtonUI;
 import static org.ldtwo.GoTTS.G.*;
+import org.ldtwo.flashcard.CardFrame;
 
 /**
  *
@@ -309,6 +310,7 @@ public final class Frame2 extends javax.swing.JFrame {
         jToolBar1 = new javax.swing.JToolBar();
         jMenuBar1 = new javax.swing.JMenuBar();
         jMenu1 = new javax.swing.JMenu();
+        menuFlashCards = new javax.swing.JMenuItem();
         jMenuItem1 = new javax.swing.JMenuItem();
         saveCurrentTab = new javax.swing.JMenuItem();
         saveAs = new javax.swing.JMenuItem();
@@ -389,6 +391,15 @@ public final class Frame2 extends javax.swing.JFrame {
         jToolBar1.setRollover(true);
 
         jMenu1.setText("File");
+
+        menuFlashCards.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_F, java.awt.event.InputEvent.ALT_MASK));
+        menuFlashCards.setText("Flash Cards");
+        menuFlashCards.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                menuFlashCardsActionPerformed(evt);
+            }
+        });
+        jMenu1.add(menuFlashCards);
 
         jMenuItem1.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_O, java.awt.event.InputEvent.CTRL_MASK));
         jMenuItem1.setText("Open");
@@ -853,6 +864,19 @@ public final class Frame2 extends javax.swing.JFrame {
 
     }//GEN-LAST:event_saveAsActionPerformed
 
+    private void menuFlashCardsActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_menuFlashCardsActionPerformed
+
+        java.awt.EventQueue.invokeLater(new java.lang.Runnable() {
+            public void run() {
+                try {
+                    new CardFrame().setVisible(true);
+                } catch (Exception ex) {
+                    Logger.getLogger(CardFrame.class.getName()).log(Level.SEVERE, null, ex);
+                }
+            }
+        });        
+    }//GEN-LAST:event_menuFlashCardsActionPerformed
+
     /**
      * @param args the command line arguments
      */
@@ -914,6 +938,7 @@ public final class Frame2 extends javax.swing.JFrame {
     private javax.swing.JMenu lang;
     private javax.swing.JScrollPane leftScrollPane;
     private javax.swing.JList lst;
+    private javax.swing.JMenuItem menuFlashCards;
     private javax.swing.JMenuItem newTabMenuItem;
     private javax.swing.JMenuItem pauseItem;
     private javax.swing.JMenuItem randomPlayItem;

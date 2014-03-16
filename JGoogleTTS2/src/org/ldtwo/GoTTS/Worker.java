@@ -51,7 +51,7 @@ public class Worker {
                 fname = query.replaceAll("[\\s]", " ").trim();
                 String[] arr = query.split("\t");
                 query = arr[0];
-            //System.out.printf("getAndPlay: query=%s; file=%s\n", query, fname);
+                //System.out.printf("getAndPlay: query=%s; file=%s\n", query, fname);
             }
             SocketClient socket = new SocketClient(fname);
             socket.path.setText("translate_tts?ie=UTF-8&tl=" + language + "&q=" + URLEncoder.encode(query, "UTF-8"));
@@ -104,19 +104,18 @@ public class Worker {
             AudioInputStream in = AudioSystem.getAudioInputStream(file);
             AudioInputStream din;
             AudioFormat baseFormat = in.getFormat();
-            AudioFormat decodedFormat =
-                    new AudioFormat(AudioFormat.Encoding.PCM_SIGNED,
-                    baseFormat.getSampleRate(),
-                    16,
-                    baseFormat.getChannels(),
-                    baseFormat.getChannels() * 2,
-                    baseFormat.getSampleRate(),
-                    false);
+            AudioFormat decodedFormat
+                    = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED,
+                            baseFormat.getSampleRate(),
+                            16,
+                            baseFormat.getChannels(),
+                            baseFormat.getChannels() * 2,
+                            baseFormat.getSampleRate(),
+                            false);
             din = AudioSystem.getAudioInputStream(decodedFormat, in);
             // Play now.
             rawplay(decodedFormat, din);
             in.close();
-
 
         } catch (Exception ex) {
             System.err.println(file);
@@ -133,11 +132,17 @@ public class Worker {
             line.start();
             int nBytesRead = 0, nBytesWritten = 0;
             while (nBytesRead != -1) {
-                while(pause)G.zzzsleep(300);
-                if(!play)break;
+                while (pause) {
+                    G.zzzsleep(300);
+                }
+                if (!play) {
+                    break;
+                }
 //                G.zzzsleep(1);
                 nBytesRead = ais.read(tmpBuffer, 0, tmpBuffer.length);
-                while(pause)G.zzzsleep(300);
+                while (pause) {
+                    G.zzzsleep(300);
+                }
                 if (nBytesRead != -1) {
                     nBytesWritten = line.write(tmpBuffer, 0, nBytesRead);
 //                    for(int i=0;i<nBytesRead;i+=20)
@@ -155,10 +160,10 @@ public class Worker {
     private SourceDataLine getLine(AudioFormat audioFormat) throws LineUnavailableException {
         SourceDataLine res;
         DataLine.Info info = new DataLine.Info(SourceDataLine.class, audioFormat);
-        
+
         res = (SourceDataLine) AudioSystem.getLine(info);
         res.open(audioFormat);
-        
+
         return res;
     }
 
@@ -276,6 +281,11 @@ public class Worker {
 
         public SocketClient(String fname) {
             new File("CACHE\\" + language).mkdirs();
+            if (!G.isValidName(fname)) {
+                fname = fname.replaceAll("[:\\\\/*?|<>]", "_");
+            } else if (!G.isValidName(fname)) {
+                fname = "_"+ Integer.toHexString((int) (Math.random() * 1000)) + "_" + fname;
+            }
             tmpFile = new File("CACHE\\" + language + "\\" + fname + ".mp3");
             address = new TextField("", 20);
             path = new TextField("", 20);
@@ -309,18 +319,13 @@ public class Worker {
 //encodedPath = encodedPath.replace("%2F", "/"); // change %2F back to slash
 //requestString = context + "://" + hostname + ":" + port + "/" + encodedPath;
 
-
-
-
-
-
                 requestString = "GET http://translate.google.com/" + path.getText() + " HTTP/1.0\r\n"
                         + "User-Agent: Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/34.0.1779.2 Safari/537.36\r\n"
                         + "Accept: audio/mpeg\r\n"
                         + "\r\n";
 //                requestString ="GET "+ uri.toASCIIString() + " HTTP/1.0\r\n" + "\r\n";
 //                System.out.println(uri.toASCIIString());
-               // System.out.println("2)    " + requestString);
+                // System.out.println("2)    " + requestString);
                 outStream.writeBytes(requestString);
                 outStream.flush();
 
