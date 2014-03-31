@@ -112,6 +112,7 @@ public class Worker {
                             false);
             din = AudioSystem.getAudioInputStream(decodedFormat, in);
             // Play now.
+            
             rawplay(decodedFormat, din);
             in.close();
 
@@ -350,6 +351,8 @@ public class Worker {
                     System.out.println("1getFile==null");
                 }
                 return file;
+            }catch(UnknownHostException e){
+                                System.err.println("Host unreachable. Check your internet connecton!");
             } catch (Exception e) {
                 System.err.println("Exception with: " + e.getMessage() + "\n" + e.toString());
                 e.printStackTrace();

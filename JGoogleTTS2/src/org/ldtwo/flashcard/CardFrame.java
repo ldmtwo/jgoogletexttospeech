@@ -9,6 +9,10 @@ import java.awt.Color;
 import java.awt.Container;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
+import java.awt.Toolkit;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
 import java.awt.geom.Rectangle2D;
 import java.io.BufferedReader;
 import java.io.File;
@@ -16,6 +20,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.InputStreamReader;
 import java.nio.charset.Charset;
+import java.text.DecimalFormat;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.Locale;
@@ -24,6 +29,7 @@ import java.util.logging.Logger;
 import javax.swing.JComponent;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
+import javax.swing.SwingUtilities;
 import javax.swing.WindowConstants;
 import javax.swing.plaf.LabelUI;
 import org.ldtwo.GoTTS.Frame2;
@@ -34,15 +40,14 @@ import org.ldtwo.GoTTS.Frame2;
  */
 public class CardFrame extends javax.swing.JFrame {
 
-    public static String path = "C:\\Users\\Larry\\Desktop\\French class\\vocab";
-    public  File[] files = null;
-    public  LinkedList<Term> deck = new LinkedList<>();
-    public  boolean useFront = true;
-    public  Term currentTerm = null;
-    public  long startTime = System.currentTimeMillis();
-
-    final double alpha = 0.3;
-    final double beta = 0.6;
+    DecimalFormat df = new DecimalFormat("0.#");
+    public static String path = "C:\\Users\\Larry\\Desktop";
+    public File[] files = null;
+    public LinkedList<Term> deck = new LinkedList<>();
+    public boolean useFront = true;
+    public Term currentTerm = null;
+    public long startTime = System.currentTimeMillis();
+    final long SLEEP_DURATION = 15000;
     Frame2 player;
 
     /**
@@ -54,6 +59,16 @@ public class CardFrame extends javax.swing.JFrame {
         player = f2;
         initComponents();
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        KeyAdapter keyAdapter = new KeyAdapter() {
+
+            @Override
+            public void keyPressed(KeyEvent evt) {
+
+            }
+
+        };
+//        this.getContentPane().addKeyListener(keyAdapter);
+        this.addKeyListener(keyAdapter);
         bottomLbl.setUI(new LabelUI() {
 
             @Override
@@ -150,8 +165,7 @@ public class CardFrame extends javax.swing.JFrame {
 
             @Override
             public int skillRating() {
-
-                return Integer.MAX_VALUE;
+                return 1000000;
             }
 
             @Override
@@ -173,25 +187,31 @@ public class CardFrame extends javax.swing.JFrame {
                 while (true) {
 
                     try {
-                        Thread.sleep(200);
-                        if (System.currentTimeMillis() - startTime < 15000) {
+
+//                        System.out.printf("sleeping for %s sec (%s)\n", 
+//                                Math.max(15000-(System.currentTimeMillis() - startTime),1)/1000.0,
+//                                System.currentTimeMillis() - startTime);
+                        Thread.sleep(Math.max(15000 - (System.currentTimeMillis() - startTime), 1));
+                        if (System.currentTimeMillis() - startTime < SLEEP_DURATION) {
+//                        Thread.sleep(500 );
                             continue;
                         }
-                        final double p=0.09, m=1-p;
+                        final double p = 0.09, m = 1 - p;
                         final Color red = Color.red;
                         final Color baseColor = scoreZero.getBackground();
                         Color gradient = baseColor;//gradient
+                        animation_loop:
                         for (int i = 0; i < 4; i++) {
                             for (int j = 0; j < 40; j++) {
                                 gradient = new Color((int) (gradient.getRed() * m + red.getRed() * p),
-                                        (int) (gradient.getGreen() * m + red.getGreen() *p),
+                                        (int) (gradient.getGreen() * m + red.getGreen() * p),
                                         (int) (gradient.getBlue() * m + red.getBlue() * p));
                                 scoreZero.setBackground(gradient);
                                 Thread.sleep(1000 / 40);
                             }
-                        if (System.currentTimeMillis() - startTime < 15000) {
-                            break;
-                        }
+                            if (System.currentTimeMillis() - startTime < 15000) {
+                                break animation_loop;
+                            }
                             for (int j = 0; j < 40; j++) {
                                 gradient = new Color((int) (gradient.getRed() * m + baseColor.getRed() * p),
                                         (int) (gradient.getGreen() * m + baseColor.getGreen() * p),
@@ -204,28 +224,41 @@ public class CardFrame extends javax.swing.JFrame {
 //                            scoreZero.setBackground(c);
 //                            Thread.sleep(100);
                         }
-                            scoreZero.setBackground(baseColor);
-                        Thread.sleep(10000);
+                        scoreZero.setBackground(baseColor);
+                        Thread.sleep((long) (SLEEP_DURATION * 9 / 10));
                     } catch (Exception ex) {
                         Logger.getLogger(CardFrame.class.getName()).log(Level.SEVERE, null, ex);
                     }
                 }
             }
-
         }.start();
-        jLabel1.setText((deck.size() - 1) + " cards");
+        updateScore();
+    }
+
+    ;
+
+    public String toString(Term t) {
+        return String.format("%38s == %-37s: %2s views, %3s sec (last), %3s sec (avg), %3s%%, %3s pts\n",
+                "\"" + t.left + "\"", "\"" + t.right + "\"", t.views,
+                df.format(t.getRecentTime()), df.format(t.getAvgTime()),
+                t.getAvgAccuracy(), t.skillRating());
     }
 
     public void print(Term t) {
-        System.out.printf("%35s == %-35s: %2s views, %2s sec (last), %2s sec (avg), %2s%%, %2s pts\n",
-                "\"" + t.left + "\"", "\"" + t.right + "\"", t.views, t.recentTime / 1000, t.avgTime / 1000,
-                (int) (t.avgAccuracy * 20), (int) t.skillRating());
+        System.out.print(toString(t));
     }
 
     public final void show(Term t) {
+        bottomLbl.setText("");
         topLbl.setText(useFront ? t.left : t.right);
         startTime = System.currentTimeMillis();
-
+        if (review.isSelected()) {
+            bottomLbl.setText((useFront ? currentTerm.right : currentTerm.left)
+                    + String.format("\n%2s views, \n%2s sec (last), %2s sec (avg), \n%2s%%, %2s pts",
+                            t.views, t.getRecentTime(), t.getAvgTime(),
+                            t.getAvgAccuracy(), (int) t.skillRating()));
+        }
+        bottomLbl.repaint();
 //        File f = player.getMP3(topLbl.getText());
 //        player.getPlaylistStringForFile(f);
     }
@@ -253,8 +286,15 @@ public class CardFrame extends javax.swing.JFrame {
         jToggleButton1 = new javax.swing.JToggleButton();
         stats = new javax.swing.JCheckBox();
         jLabel1 = new javax.swing.JLabel();
+        review = new javax.swing.JCheckBox();
+        trim = new javax.swing.JCheckBox();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
+        addComponentListener(new java.awt.event.ComponentAdapter() {
+            public void componentResized(java.awt.event.ComponentEvent evt) {
+                formComponentResized(evt);
+            }
+        });
         addKeyListener(new java.awt.event.KeyAdapter() {
             public void keyPressed(java.awt.event.KeyEvent evt) {
                 formKeyPressed(evt);
@@ -265,8 +305,15 @@ public class CardFrame extends javax.swing.JFrame {
         topLbl.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
         topLbl.setText("--");
         topLbl.setBorder(javax.swing.BorderFactory.createBevelBorder(javax.swing.border.BevelBorder.RAISED));
+        topLbl.setFocusable(false);
+        topLbl.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                topLblMouseClicked(evt);
+            }
+        });
 
         prevBtn.setText("<<");
+        prevBtn.setFocusable(false);
         prevBtn.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 prevBtnActionPerformed(evt);
@@ -276,6 +323,7 @@ public class CardFrame extends javax.swing.JFrame {
 
         scoreZero.setBackground(new java.awt.Color(255, 102, 102));
         scoreZero.setText("wrong/unknown");
+        scoreZero.setFocusable(false);
         scoreZero.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 scoreZeroActionPerformed(evt);
@@ -285,6 +333,7 @@ public class CardFrame extends javax.swing.JFrame {
 
         scoreOne.setBackground(new java.awt.Color(255, 204, 204));
         scoreOne.setText("unsure/half right");
+        scoreOne.setFocusable(false);
         scoreOne.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 scoreOneActionPerformed(evt);
@@ -294,6 +343,7 @@ public class CardFrame extends javax.swing.JFrame {
 
         scoreTwo.setBackground(new java.awt.Color(204, 255, 204));
         scoreTwo.setText("correct");
+        scoreTwo.setFocusable(false);
         scoreTwo.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 scoreTwoActionPerformed(evt);
@@ -302,6 +352,7 @@ public class CardFrame extends javax.swing.JFrame {
         jPanel1.add(scoreTwo);
 
         nextBtn.setText(">>");
+        nextBtn.setFocusable(false);
         nextBtn.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 nextBtnActionPerformed(evt);
@@ -310,6 +361,7 @@ public class CardFrame extends javax.swing.JFrame {
         jPanel1.add(nextBtn);
 
         printScore.setText("Score");
+        printScore.setFocusable(false);
         printScore.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 printScoreActionPerformed(evt);
@@ -317,6 +369,7 @@ public class CardFrame extends javax.swing.JFrame {
         });
 
         shuffle.setText("Randomize");
+        shuffle.setFocusable(false);
         shuffle.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 shuffleActionPerformed(evt);
@@ -327,6 +380,7 @@ public class CardFrame extends javax.swing.JFrame {
         bottomLbl.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
         bottomLbl.setText("--");
         bottomLbl.setBorder(javax.swing.BorderFactory.createBevelBorder(javax.swing.border.BevelBorder.RAISED));
+        bottomLbl.setFocusable(false);
         bottomLbl.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseEntered(java.awt.event.MouseEvent evt) {
                 bottomLblMouseEntered(evt);
@@ -337,6 +391,7 @@ public class CardFrame extends javax.swing.JFrame {
         });
 
         sortBtn.setText("Prioritize");
+        sortBtn.setFocusable(false);
         sortBtn.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 sortBtnActionPerformed(evt);
@@ -344,6 +399,7 @@ public class CardFrame extends javax.swing.JFrame {
         });
 
         jToggleButton1.setText("Front");
+        jToggleButton1.setFocusable(false);
         jToggleButton1.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 jToggleButton1ActionPerformed(evt);
@@ -351,8 +407,21 @@ public class CardFrame extends javax.swing.JFrame {
         });
 
         stats.setText("Stats");
+        stats.setFocusable(false);
 
         jLabel1.setText("--");
+        jLabel1.setFocusable(false);
+
+        review.setText("Review");
+        review.setFocusable(false);
+        review.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                reviewActionPerformed(evt);
+            }
+        });
+
+        trim.setText("Trim");
+        trim.setFocusable(false);
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
@@ -360,9 +429,12 @@ public class CardFrame extends javax.swing.JFrame {
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
-                .addGap(0, 0, Short.MAX_VALUE)
-                .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 67, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jLabel1, javax.swing.GroupLayout.DEFAULT_SIZE, 173, Short.MAX_VALUE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(trim)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(review)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(stats)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jToggleButton1)
@@ -373,10 +445,7 @@ public class CardFrame extends javax.swing.JFrame {
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(printScore))
             .addComponent(topLbl, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
-                .addContainerGap(80, Short.MAX_VALUE)
-                .addComponent(bottomLbl, javax.swing.GroupLayout.PREFERRED_SIZE, 359, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(89, 89, 89))
+            .addComponent(bottomLbl, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -387,12 +456,14 @@ public class CardFrame extends javax.swing.JFrame {
                     .addComponent(sortBtn)
                     .addComponent(jToggleButton1)
                     .addComponent(stats)
-                    .addComponent(jLabel1))
+                    .addComponent(jLabel1)
+                    .addComponent(review)
+                    .addComponent(trim))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(topLbl, javax.swing.GroupLayout.PREFERRED_SIZE, 262, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(bottomLbl, javax.swing.GroupLayout.DEFAULT_SIZE, 143, Short.MAX_VALUE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGap(1, 1, 1)
                 .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
         );
 
@@ -403,33 +474,71 @@ public class CardFrame extends javax.swing.JFrame {
 
         Term t = deck.removeLast();
         deck.addFirst(t);
+        if (t.skillRating() > 1000) {
+            t = deck.removeLast();
+            deck.addFirst(t);
+        }
         show(t);
         currentTerm = t;
     }//GEN-LAST:event_prevBtnActionPerformed
 
     private void nextBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_nextBtnActionPerformed
 
-        Term t = deck.removeFirst();
-        deck.addLast(t);
-        currentTerm = deck.peekFirst();
+        Term t = deck.removeFirst();//move old current
+        if (trim.isSelected()) {
+            if (t.views < 4 && t.getAvgAccuracy() < 98) {
+                //can we remove this card?
+                //REQ: seen 4+ times and 98% or better
+                deck.addLast(t);//to end
+            }
+        } else {
+            deck.addLast(t);
+        }
+        currentTerm = deck.peekFirst();//get new current
         currentTerm.run();
         show(deck.peekFirst());
+        SwingUtilities.invokeLater(new Runnable() {
+
+            @Override
+            public void run() {
+                File f = player.getMP3(topLbl.getText());
+                if (f != null && f.exists()) {
+                    player.playMP3(f);
+                }
+            }
+        });
+        updateScore();
+
     }//GEN-LAST:event_nextBtnActionPerformed
 
     private void printScoreActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_printScoreActionPerformed
         //score
         Collections.sort(deck);
+        StringBuilder sb = new StringBuilder(4096);
         for (Term t : deck) {
-            print(t);
+            sb.append(toString(t));
         }
+        TextDisplayFrame frame = new TextDisplayFrame();
+        frame.txt.setText(sb.toString());
+//        frame.pack();   
+        frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        frame.setSize(900, (int) Toolkit.getDefaultToolkit().getScreenSize().getHeight() - 30);
+        frame.show();
 
     }//GEN-LAST:event_printScoreActionPerformed
 
     private void shuffleActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_shuffleActionPerformed
         //randomize 3*O(n)
+        Collections.sort(deck);
+//System.out.println("\n\n\n\n\n\n");
+//        for(Term t: deck){
+//            t.println();
+//        }
+        Term t = deck.removeLast();
         Collections.shuffle(deck);
         Collections.shuffle(deck);
         Collections.shuffle(deck);
+        deck.addLast(t);
         currentTerm = deck.peekFirst();
         show(currentTerm);
     }//GEN-LAST:event_shuffleActionPerformed
@@ -437,10 +546,9 @@ public class CardFrame extends javax.swing.JFrame {
 
     private void scoreZeroActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_scoreZeroActionPerformed
         Term t = currentTerm;
-        t.avgAccuracy = (1 - beta) * t.avgAccuracy + 0;
+        t.setLastAccuracy(0);
         long curTime = System.currentTimeMillis() - startTime;
-        t.avgTime = (1 - alpha) * t.recentTime + alpha * curTime;
-        t.recentTime = curTime;
+        t.setLastTime(curTime);
         t.views++;
         nextBtnActionPerformed(evt);
 
@@ -448,10 +556,9 @@ public class CardFrame extends javax.swing.JFrame {
 
     private void scoreOneActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_scoreOneActionPerformed
         Term t = currentTerm;
-        t.avgAccuracy = (1 - beta) * t.avgAccuracy + beta * 2;
+        t.setLastAccuracy(2);
         long curTime = System.currentTimeMillis() - startTime;
-        t.avgTime = (1 - alpha) * t.recentTime + alpha * curTime;
-        t.recentTime = curTime;
+        t.setLastTime(curTime);
         t.views++;
         nextBtnActionPerformed(evt);
 
@@ -459,10 +566,9 @@ public class CardFrame extends javax.swing.JFrame {
 
     private void scoreTwoActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_scoreTwoActionPerformed
         Term t = currentTerm;
-        t.avgAccuracy = (1 - beta) * t.avgAccuracy + beta * 5;
+        t.setLastAccuracy(5);
         long curTime = System.currentTimeMillis() - startTime;
-        t.avgTime = (1 - alpha) * t.recentTime + alpha * curTime;
-        t.recentTime = curTime;
+        t.setLastTime(curTime);
         t.views++;
         nextBtnActionPerformed(evt);
 
@@ -476,7 +582,25 @@ public class CardFrame extends javax.swing.JFrame {
             scoreOneActionPerformed(null);
         } else if (evt.getKeyChar() == '3') {
             scoreTwoActionPerformed(null);
+        } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
+            nextBtnActionPerformed(null);
+        } else if (evt.getKeyCode() == KeyEvent.VK_LEFT) {
+            prevBtnActionPerformed(null);
+        } else if (evt.getKeyChar() == 'r' || evt.getKeyCode() == KeyEvent.VK_TAB) {
+            Term t = currentTerm;
+
+            //if (review.isSelected()) 
+            {
+                bottomLbl.setText((useFront ? currentTerm.right : currentTerm.left)
+                        + String.format("\n%2s views, \n%2s sec (last), %2s sec (avg), \n%2s%%, %2s pts",
+                                t.views, t.getRecentTime(), t.getAvgTime(),
+                                t.getAvgAccuracy(), (int) t.skillRating()));
+            }
+//            else {
+//                bottomLbl.setText("");
+//            }
         }
+
 
     }//GEN-LAST:event_formKeyPressed
 
@@ -484,14 +608,16 @@ public class CardFrame extends javax.swing.JFrame {
         Term t = currentTerm;
         bottomLbl.setText((useFront ? currentTerm.right : currentTerm.left)
                 + String.format("\n%2s views, \n%2s sec (last), %2s sec (avg), \n%2s%%, %2s pts",
-                        t.views, t.recentTime / 1000, t.avgTime / 1000,
-                        (int) (t.avgAccuracy * 20), (int) t.skillRating()));
+                        t.views, t.getRecentTime(), t.getAvgTime(),
+                        t.getAvgAccuracy(), (int) t.skillRating()));
 
 
     }//GEN-LAST:event_bottomLblMouseEntered
 
     private void bottomLblMouseExited(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_bottomLblMouseExited
-        bottomLbl.setText("");
+        if (!review.isSelected()) {
+            bottomLbl.setText("");
+        }
     }//GEN-LAST:event_bottomLblMouseExited
 
     private void sortBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_sortBtnActionPerformed
@@ -525,6 +651,78 @@ public class CardFrame extends javax.swing.JFrame {
 
     }//GEN-LAST:event_jToggleButton1ActionPerformed
 
+    private void formComponentResized(java.awt.event.ComponentEvent evt) {//GEN-FIRST:event_formComponentResized
+        Runnable resizeRunnable = null;
+        resizeRunnable = new Runnable() {
+
+            @Override
+            public void run() {
+//                try {
+//                    Thread.sleep(100);
+//                } catch (InterruptedException ex) {
+//                    Logger.getLogger(CardFrame.class.getName()).log(Level.SEVERE, null, ex);
+//                }
+//                if(resizeRunnable!=this)return;
+                bottomLbl.setLocation(topLbl.getWidth() / 2 - bottomLbl.getWidth() / 2, bottomLbl.getY());
+            }
+        };
+        SwingUtilities.invokeLater(resizeRunnable);
+
+    }//GEN-LAST:event_formComponentResized
+
+    private void reviewActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_reviewActionPerformed
+        Term t = currentTerm;
+
+        if (review.isSelected()) {
+            bottomLbl.setText((useFront ? currentTerm.right : currentTerm.left)
+                    + String.format("\n%2s views, \n%2s sec (last), %2s sec (avg), \n%2s%%, %2s pts",
+                            t.views, t.getRecentTime(), t.getAvgTime(),
+                            t.getAvgAccuracy(), (int) t.skillRating()));
+        } else {
+            bottomLbl.setText("");
+        }
+    }//GEN-LAST:event_reviewActionPerformed
+
+    private void topLblMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_topLblMouseClicked
+
+        SwingUtilities.invokeLater(new Runnable() {
+
+            @Override
+            public void run() {
+                File f = player.getMP3(topLbl.getText());
+                player.playMP3(f);
+            }
+        });
+
+
+    }//GEN-LAST:event_topLblMouseClicked
+
+    public void updateScore() {
+        Runnable runnable = new Runnable() {
+            public void run() {
+                double cnt = 0;
+                double pts = 0;
+                try {
+                    double skill;
+                    for (Term t : deck) {
+                        skill = t.skillRating();
+                        if (skill > 10000) {
+                            continue;
+                        }
+                        cnt += t.getAvgAccuracy();
+                        pts += skill;
+                    }
+                    cnt = cnt / (deck.size() - 1);
+                    pts = pts / (deck.size() - 1);
+                    jLabel1.setText(String.format(" %4s cards  %3s%%  @ %3s pts",
+                            deck.size() - 1, df.format(cnt), df.format(pts)));
+                } catch (Exception e) {
+                    jLabel1.setText(String.format(" %4s cards", deck.size() - 1));
+                }
+            }
+        };
+        SwingUtilities.invokeLater(runnable);
+    }
 //    /**
 //     * @param args the command line arguments
 //     */
@@ -572,6 +770,7 @@ public class CardFrame extends javax.swing.JFrame {
     private javax.swing.JButton nextBtn;
     private javax.swing.JButton prevBtn;
     private javax.swing.JButton printScore;
+    private javax.swing.JCheckBox review;
     private javax.swing.JButton scoreOne;
     private javax.swing.JButton scoreTwo;
     private javax.swing.JButton scoreZero;
@@ -579,5 +778,6 @@ public class CardFrame extends javax.swing.JFrame {
     private javax.swing.JButton sortBtn;
     private javax.swing.JCheckBox stats;
     private javax.swing.JLabel topLbl;
+    private javax.swing.JCheckBox trim;
     // End of variables declaration//GEN-END:variables
 }
