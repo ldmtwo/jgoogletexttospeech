@@ -5,32 +5,37 @@
  */
 package org.ldtwo.flashcard;
 
+import java.awt.Canvas;
 import java.awt.Color;
 import java.awt.Container;
+import java.awt.Desktop;
+import java.awt.DisplayMode;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
+import java.awt.GraphicsConfiguration;
+import java.awt.GraphicsDevice;
+import java.awt.GraphicsEnvironment;
+import java.awt.Rectangle;
 import java.awt.Toolkit;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
 import java.awt.geom.Rectangle2D;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.Charset;
 import java.text.DecimalFormat;
 import java.util.Collections;
 import java.util.LinkedList;
-import java.util.Locale;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.JComponent;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.SwingUtilities;
-import javax.swing.WindowConstants;
 import javax.swing.plaf.LabelUI;
 import org.ldtwo.GoTTS.Frame2;
 
@@ -42,13 +47,12 @@ public class CardFrame extends javax.swing.JFrame {
 
     DecimalFormat df = new DecimalFormat("0.#");
     public static String path = "C:\\Users\\Larry\\Desktop";
-    public File[] files = null;
-    public LinkedList<Term> deck = new LinkedList<>();
     public boolean useFront = true;
     public Term currentTerm = null;
     public long startTime = System.currentTimeMillis();
     final long SLEEP_DURATION = 15000;
     Frame2 player;
+    final LinkedList<Term> deck;
 
     /**
      * Creates new form CardFrame
@@ -56,8 +60,32 @@ public class CardFrame extends javax.swing.JFrame {
      * @throws java.lang.Exception
      */
     public CardFrame(Frame2 f2) throws Exception {
+
+//        this.setVisible(false);
+//        this.setUndecorated(true);
+//        this.setVisible(true);
         player = f2;
         initComponents();
+        //grapg dev, syst tray, desktop, disp mode, graph dev
+
+//        GraphicsEnvironment ge = GraphicsEnvironment.                getLocalGraphicsEnvironment();
+//        GraphicsDevice[] graphDevArray = ge.getScreenDevices();
+//        for (GraphicsDevice gd : graphDevArray) {
+//            
+//            GraphicsConfiguration[] graphCgfArray = gd.getConfigurations();
+//            for (int i = 0; i < graphCgfArray.length; i++) {
+//                JFrame f = new JFrame(gd.getDefaultConfiguration());
+//                
+//                Canvas c = new Canvas(graphCgfArray[i]);
+//                Rectangle gcBounds = graphCgfArray[i].getBounds();
+//                int xoffs = gcBounds.x;
+//                int yoffs = gcBounds.y;
+//                f.getContentPane().add(c);
+//                f.setLocation((i * 50) + xoffs, (i * 60) + yoffs);
+//                f.show();
+//                gd.setFullScreenWindow(this);
+//            }
+//        }
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         KeyAdapter keyAdapter = new KeyAdapter() {
 
@@ -139,46 +167,29 @@ public class CardFrame extends javax.swing.JFrame {
 
         });
 //        jLabel1.setLocale(Locale.US);
-        JFileChooser fc = new JFileChooser(path);
-        fc.setMultiSelectionEnabled(true);
-        fc.showOpenDialog(null);
-        files = fc.getSelectedFiles();
-        if (files == null) {
-            return;
-        }
-        Term t = null;
-        String line;
-        String[] arr;
-        for (File file : files) {
-            BufferedReader br = new BufferedReader(new InputStreamReader(
-                    new FileInputStream(file), Charset.forName("UTF-8")));
-            while ((line = br.readLine()) != null) {
-                arr = line.split("\t");
-                if (arr.length != 2) {
-                    continue;
+
+        {
+            deck = getDeck(null);
+
+            deck.addLast(new Term() {
+
+                @Override
+                public int skillRating() {
+                    return 1000000;
                 }
-                t = new Term(arr[0], arr[1]);
-                deck.addLast(t);
-            }
-        }
-        deck.addLast(new Term() {
 
-            @Override
-            public int skillRating() {
-                return 1000000;
-            }
+                @Override
+                public void run() {
+                    Collections.sort(deck);
+                    currentTerm = deck.peekFirst();
+                    show(currentTerm);
+                }
 
-            @Override
-            public void run() {
-                Collections.sort(deck);
+            });
+            if (deck.size() > 0) {
                 currentTerm = deck.peekFirst();
                 show(currentTerm);
             }
-
-        });
-        if (t != null) {
-            currentTerm = deck.peekFirst();
-            show(currentTerm);
         }
         new Thread() {
 
@@ -233,19 +244,66 @@ public class CardFrame extends javax.swing.JFrame {
             }
         }.start();
         updateScore();
+
+//        GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
+//        GraphicsDevice[] graphDevArray = ge.getScreenDevices();
+//
+//        graphDevArray[0].setFullScreenWindow(this);
     }
 
     ;
+/**input can be null
+ * 
+ * @param inputFile
+ * @return
+ * @throws Exception 
+ */
+    public static LinkedList getDeck(File inputFile) throws Exception {
+        final LinkedList<Term> deck = new LinkedList<>();
 
-    public String toString(Term t) {
-        return String.format("%38s == %-37s: %2s views, %3s sec (last), %3s sec (avg), %3s%%, %3s pts\n",
-                "\"" + t.left + "\"", "\"" + t.right + "\"", t.views,
-                df.format(t.getRecentTime()), df.format(t.getAvgTime()),
-                t.getAvgAccuracy(), t.skillRating());
+        File[] files = null;
+        if (inputFile == null) {
+            JFileChooser fc = new JFileChooser(path);
+            fc.setMultiSelectionEnabled(true);
+            fc.showOpenDialog(null);
+            files = fc.getSelectedFiles();
+        } else {
+            files = new File[]{inputFile};
+        }
+        if (files == null) {
+            return null;
+        }
+        Term t = null;
+        String line;
+        String[] arr;
+        for (File file : files) {
+            BufferedReader br = null;
+            try {
+                br = new BufferedReader(new InputStreamReader(
+                        new FileInputStream(file), Charset.forName("UTF-8")));
+                while ((line = br.readLine()) != null) {
+                    arr = line.split("\t");
+                    if (arr.length != 2) {
+                        continue;
+                    }
+                    t = new Term(arr[0], arr[1]);
+                    deck.addLast(t);
+                }
+            } catch (Exception ex) {
+                Logger.getLogger(CardFrame.class.getName()).log(Level.SEVERE, null, ex);
+            } finally {
+                try {
+                    br.close();
+                } catch (IOException ex) {
+                    Logger.getLogger(CardFrame.class.getName()).log(Level.SEVERE, null, ex);
+                }
+            }
+        }
+        return deck;
     }
 
     public void print(Term t) {
-        System.out.print(toString(t));
+        System.out.print(t.toString());
     }
 
     public final void show(Term t) {
@@ -422,6 +480,11 @@ public class CardFrame extends javax.swing.JFrame {
 
         trim.setText("Trim");
         trim.setFocusable(false);
+        trim.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                trimActionPerformed(evt);
+            }
+        });
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
@@ -516,7 +579,7 @@ public class CardFrame extends javax.swing.JFrame {
         Collections.sort(deck);
         StringBuilder sb = new StringBuilder(4096);
         for (Term t : deck) {
-            sb.append(toString(t));
+            sb.append(t.toString());
         }
         TextDisplayFrame frame = new TextDisplayFrame();
         frame.txt.setText(sb.toString());
@@ -696,6 +759,10 @@ public class CardFrame extends javax.swing.JFrame {
 
 
     }//GEN-LAST:event_topLblMouseClicked
+
+    private void trimActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_trimActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_trimActionPerformed
 
     public void updateScore() {
         Runnable runnable = new Runnable() {

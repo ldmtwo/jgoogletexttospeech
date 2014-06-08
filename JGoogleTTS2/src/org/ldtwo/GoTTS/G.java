@@ -8,6 +8,8 @@ package org.ldtwo.GoTTS;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.PrintStream;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.security.SecureRandom;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -33,8 +35,10 @@ public class G {
     public static long delay = 1;
     public static final String DELIM = "[\\n]", ANTIDELIM = "[^\\n]";
     public static final String DELIM2 = "[,.\\n]", ANTIDELIM2 = "[^,.\\n]";
-    public static boolean play = true;
+    public static boolean play = false;
     public static boolean pause = false;
+    public static boolean skip = false;
+    public static int skipDelta = 0;
     public final static boolean SIMULATION = false;
     static final HashMap<String, String> LA_LANGUAGE = new HashMap<String, String>();
     static final HashMap<String, String> LANGUAGE_LA = new HashMap<String, String>();
@@ -176,10 +180,10 @@ public class G {
     }
 
     public static boolean saveFile(EditorPanel p, boolean askForFileName) {
-        if (p.file == null||askForFileName) {
+        if (p.file == null || askForFileName) {
             int selectedIndex = Frame2.ths.tabPane.getSelectedIndex();
             Frame2.ths.tabPane.setSelectedComponent(p);//temporarily switch to current tab
-            JFileChooser fc = new JFileChooser();
+            JFileChooser fc = G.fileChooser;
             fc.showSaveDialog(null);
             p.file = fc.getSelectedFile();
             if (p.file == null) {
@@ -226,26 +230,90 @@ public class G {
 
         }
     }
-    
-public static boolean isValidName(String text)
-{
-    Pattern pattern = Pattern.compile(
-        "# Match a valid Windows filename (unspecified file system).          \n" +
-        "^                                # Anchor to start of string.        \n" +
-        "(?!                              # Assert filename is not: CON, PRN, \n" +
-        "  (?:                            # AUX, NUL, COM1, COM2, COM3, COM4, \n" +
-        "    CON|PRN|AUX|NUL|             # COM5, COM6, COM7, COM8, COM9,     \n" +
-        "    COM[1-9]|LPT[1-9]            # LPT1, LPT2, LPT3, LPT4, LPT5,     \n" +
-        "  )                              # LPT6, LPT7, LPT8, and LPT9...     \n" +
-        "  (?:\\.[^.]*)?                  # followed by optional extension    \n" +
-        "  $                              # and end of string                 \n" +
-        ")                                # End negative lookahead assertion. \n" +
-        "[^<>:\"/\\\\|?*\\x00-\\x1F]*     # Zero or more valid filename chars.\n" +
-        "[^<>:\"/\\\\|?*\\x00-\\x1F\\ .]  # Last char is not a space or dot.  \n" +
-        "$                                # Anchor to end of string.            ", 
-        Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE | Pattern.COMMENTS);
-    Matcher matcher = pattern.matcher(text);
-    boolean isMatch = matcher.matches();
-    return isMatch;
-}
+
+    public static boolean isValidName(String text) {
+        Pattern pattern = Pattern.compile(
+                "# Match a valid Windows filename (unspecified file system).          \n"
+                + "^                                # Anchor to start of string.        \n"
+                + "(?!                              # Assert filename is not: CON, PRN, \n"
+                + "  (?:                            # AUX, NUL, COM1, COM2, COM3, COM4, \n"
+                + "    CON|PRN|AUX|NUL|             # COM5, COM6, COM7, COM8, COM9,     \n"
+                + "    COM[1-9]|LPT[1-9]            # LPT1, LPT2, LPT3, LPT4, LPT5,     \n"
+                + "  )                              # LPT6, LPT7, LPT8, and LPT9...     \n"
+                + "  (?:\\.[^.]*)?                  # followed by optional extension    \n"
+                + "  $                              # and end of string                 \n"
+                + ")                                # End negative lookahead assertion. \n"
+                + "[^<>:\"/\\\\|?*\\x00-\\x1F]*     # Zero or more valid filename chars.\n"
+                + "[^<>:\"/\\\\|?*\\x00-\\x1F\\ .]  # Last char is not a space or dot.  \n"
+                + "$                                # Anchor to end of string.            ",
+                Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE | Pattern.COMMENTS);
+        Matcher matcher = pattern.matcher(text);
+        boolean isMatch = matcher.matches();
+        return isMatch;
+    }
+
+        
+    public static final String makeValidFileName(String fname) {
+        if (G.isValidName(fname)) {
+            return fname;
+        }
+        fname = fname.replace("/", " or ");
+        fname = fname.replace("\\", " or ");
+        fname = fname.replaceAll("[:*?|<>]", "_");
+        if (G.isValidName(fname)) {
+            return fname;
+        }
+        fname=fname.replaceAll("[^a-zA-Z0-9_+.()!@#$%^&*]", "_");
+        fname=fname.replace(" ", "_");
+        while(fname.contains("__"))fname=fname.replace("__", "_");
+        return fname.trim();//TODO test this
+    }
+
+    private static final String makeValidQuery(String str) { 
+        if (G.isValidName(str)) {
+            return str;
+        }
+        final String VALID_SET="()-";
+        //while(str.startsWith("\""))str=str.substring(1);
+        //while(str.endsWith("\""))str=str.substring(0,str.length()-1);
+        //str = str.replace("/", " or ");
+        //str = str.replace("\\", " or ");
+        char[] chars=str.toCharArray();
+        int i=0;
+        for(char ch: chars){
+            if(Character.isLetterOrDigit(ch))chars[i++]=ch;
+            else if(Character.isWhitespace(ch))chars[i++]=' ';
+            else if(VALID_SET.indexOf(ch)>=0)chars[i++]=ch;
+        }
+        str=new String(chars,0,i);
+        
+        //str = str.replaceAll("[,.:*?|<>]", " ");
+//        if (G.isValidName(str)) {
+//            return str;
+//        }
+//        str=str.replaceAll("[^a-zA-Z0-9_+.()!@#$%^&*]", " ");
+        //while(str.contains("  "))str=str.replace("  ", " ");
+        return str.trim();//TODO test this
+    }
+    public static final String encode2URL(String str) {
+        
+        try {
+            str=G.makeValidQuery(str);
+            return URLEncoder.encode(str, "UTF-8");
+        } catch (UnsupportedEncodingException ex) {
+            Logger.getLogger(G.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        return "UnsupportedEncodingException: G.java";//TODO test this
+    }
+
+    public static String withOptions(String label) {
+        String ret=label.replaceAll("[\\(\\)]", "");
+        return ret;
+    }
+
+    public static String withoutOptions(String label) {
+        String ret=label.replaceAll("\\([^\\(\\)]*\\)", "");
+        return ret;
+    }
+   final static  JFileChooser fileChooser=new JFileChooser(".");
 }

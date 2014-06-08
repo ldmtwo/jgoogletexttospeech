@@ -36,7 +36,13 @@ public class Worker {
     public Worker(String language) {
         this.language = language;
     }
+ static public File playMP3(String query, String lang) {
+        return new Worker(lang).getAndPlay((query), true);
+    }
 
+   static  public File getMP3(String query, String lang) {
+        return new Worker(lang).getAndPlay((query), false);
+    }
     public File getAndPlay(String query, boolean play) {
         try {
             //System.out.printf("getAndPlay: query=%s\n", query);
@@ -94,9 +100,16 @@ public class Worker {
         }
         return null;
     }
-    byte[] tmpBuffer = new byte[64];
+    //every 32 bytes = 16 values = 1 ms
 
-    public void play(File file) {
+    public static void main(String[] args) {
+        Worker w = new Worker();
+        File f = new File("C:\\Users\\Larry\\Documents\\NetBeansProjects\\JGoogleTTS\\CACHE\\ko\\82.mp3");
+        w.play(f);
+
+    }
+
+    public void analyze(File file) {
         try {
 
             AudioInputStream in = AudioSystem.getAudioInputStream(file);
@@ -105,15 +118,26 @@ public class Worker {
             AudioFormat decodedFormat
                     = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED,
                             baseFormat.getSampleRate(),
-                            16,
+                            16,//sample size in bits
                             baseFormat.getChannels(),
-                            baseFormat.getChannels() * 2,
-                            baseFormat.getSampleRate(),
+                            //mono=2, stereo=4 bytes/frame
+                            baseFormat.getChannels() * 2,//frame size = channels*#bytes
+                            baseFormat.getSampleRate(),//frame rate
                             false);
-            din = AudioSystem.getAudioInputStream(decodedFormat, in);
+            System.out.printf("%s, %s\n", file, decodedFormat);
+//            din = AudioSystem.getAudioInputStream(decodedFormat, in);
             // Play now.
-            
-            rawplay(decodedFormat, din);
+            //AudioPlayer.
+//                    rawplay(decodedFormat, din
+            //,file
+//                    );
+//            in.close();
+
+            //experiment
+//            AudioPlayer.getMic();
+            in = AudioSystem.getAudioInputStream(file);
+            din = AudioSystem.getAudioInputStream(decodedFormat, in);
+            AudioAnalyzer.analyze2(decodedFormat, din, file);
             in.close();
 
         } catch (Exception ex) {
@@ -122,10 +146,50 @@ public class Worker {
         }
     }
 
-    private void rawplay(AudioFormat targetFormat,
+   static public void play(File file) {
+        try {
+
+            AudioInputStream in = AudioSystem.getAudioInputStream(file);
+            AudioInputStream din;
+            AudioFormat baseFormat = in.getFormat();
+            AudioFormat decodedFormat
+                    = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED,
+                            baseFormat.getSampleRate(),
+                            16,//sample size in bits
+                            baseFormat.getChannels(),
+                            //mono=2, stereo=4 bytes/frame
+                            baseFormat.getChannels() * 2,//frame size = channels*#bytes
+                            baseFormat.getSampleRate(),//frame rate
+                            false);
+            System.out.printf("%s, %s\n", file, decodedFormat);
+            din = AudioSystem.getAudioInputStream(decodedFormat, in);
+            // Play now.
+            //AudioPlayer.
+            rawplay(decodedFormat, din
+            //,file
+            );
+            in.close();
+
+            //experiment
+//            AudioPlayer.getMic();
+//            in = AudioSystem.getAudioInputStream(file);
+//            din = AudioSystem.getAudioInputStream(decodedFormat, in);
+//            AudioAnalyzer.analyze(decodedFormat, din, file);
+//            in.close();
+        } catch (Exception ex) {
+            System.err.println(file);
+            ex.printStackTrace();
+        }
+    }
+
+    static byte[] tmpBuffer = new byte[32 * 10000];//10 sec
+
+   static private void rawplay(AudioFormat targetFormat,
             AudioInputStream ais)
             throws IOException, LineUnavailableException {
         SourceDataLine line = getLine(targetFormat);
+        BufferedInputStream bis = new BufferedInputStream(ais);
+
         if (line != null) {
             // Start
             line.start();
@@ -139,11 +203,23 @@ public class Worker {
                 }
 //                G.zzzsleep(1);
                 nBytesRead = ais.read(tmpBuffer, 0, tmpBuffer.length);
-                while (pause) {
-                    G.zzzsleep(300);
-                }
                 if (nBytesRead != -1) {
-                    nBytesWritten = line.write(tmpBuffer, 0, nBytesRead);
+                    int pos = 0;
+                    int remaining = nBytesRead;
+                    while (remaining>0) {
+                        nBytesWritten = line.write(tmpBuffer, pos, Math.min(4 * 128, remaining));
+                        remaining -= nBytesWritten;
+                        pos += nBytesWritten;
+                        while (pause) {//maybe pause
+                            G.zzzsleep(100);
+                            if (G.skip) {//maybe skip
+                                G.skip = false;
+                                pos = bound(pos + G.skipDelta, 0, nBytesRead);
+                                remaining = bound(remaining + G.skipDelta, 0, nBytesRead);
+                                G.skipDelta = 0;
+                            }
+                        }
+                    }
 //                    for(int i=0;i<nBytesRead;i+=20)
 //                        line.write(tmpBuffer, i, 20);
                 }
@@ -156,7 +232,7 @@ public class Worker {
         }
     }
 
-    private SourceDataLine getLine(AudioFormat audioFormat) throws LineUnavailableException {
+  static  private SourceDataLine getLine(AudioFormat audioFormat) throws LineUnavailableException {
         SourceDataLine res;
         DataLine.Info info = new DataLine.Info(SourceDataLine.class, audioFormat);
 
@@ -192,7 +268,7 @@ public class Worker {
 //        } catch (IOException ioe) {
 //            ioe.printStackTrace();
             // System.exit(1);
-        }catch(Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         } finally {
             try {
@@ -273,6 +349,15 @@ public class Worker {
         return null;
     }
 
+    final public static int bound(int val, int lowerBound, int upperBound) {
+        //don't exceed upper and don't go below lower
+        return Math.min(upperBound, Math.max(lowerBound, val));
+    }
+
+    final static public double bound(double val,double min,double max){
+        if(Double.isNaN(val))return min;
+        return min>val?min:max<val?max:val;
+    }
     private class SocketClient implements java.lang.Runnable {
 
         public TextField address, path;
@@ -285,7 +370,7 @@ public class Worker {
             if (!G.isValidName(fname)) {
                 fname = fname.replaceAll("[:\\\\/*?|<>]", "_");
             } else if (!G.isValidName(fname)) {
-                fname = "_"+ Integer.toHexString((int) (Math.random() * 1000)) + "_" + fname;
+                fname = "_" + Integer.toHexString((int) (Math.random() * 1000)) + "_" + fname;
             }
             tmpFile = new File("CACHE\\" + language + "\\" + fname + ".mp3");
             address = new TextField("", 20);
@@ -351,8 +436,8 @@ public class Worker {
                     System.out.println("1getFile==null");
                 }
                 return file;
-            }catch(UnknownHostException e){
-                                System.err.println("Host unreachable. Check your internet connecton!");
+            } catch (UnknownHostException e) {
+                System.err.println("Host unreachable. Check your internet connecton!");
             } catch (Exception e) {
                 System.err.println("Exception with: " + e.getMessage() + "\n" + e.toString());
                 e.printStackTrace();
