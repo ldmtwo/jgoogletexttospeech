@@ -8,8 +8,8 @@ package org.ldtwo.GoTTS;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import javax.swing.JFrame;
-import static org.ldtwo.GoTTS.G.LANGUAGE_LA;
-import static org.ldtwo.GoTTS.G.LA_LANGUAGE;
+import static org.ldtwo.GoTTS.Languages.LANGUAGE_LA;
+import static org.ldtwo.GoTTS.Languages.LA_LANGUAGE;
 
 /**
  *

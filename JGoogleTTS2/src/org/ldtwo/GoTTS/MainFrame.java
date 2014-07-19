@@ -11,15 +11,18 @@
 package org.ldtwo.GoTTS;
 
 import java.awt.Color;
+import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
+import java.awt.HeadlessException;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
+import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
@@ -29,26 +32,30 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.security.Provider;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Scanner;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import javax.media.Time;
 import javax.swing.BorderFactory;
+import javax.swing.DefaultListCellRenderer;
 import javax.swing.DefaultListModel;
 import javax.swing.JButton;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JList;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
@@ -56,33 +63,177 @@ import javax.swing.JPanel;
 import javax.swing.JTabbedPane;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
-import javax.swing.UIManager.LookAndFeelInfo;
 import javax.swing.WindowConstants;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import javax.swing.event.TreeSelectionEvent;
 import javax.swing.event.TreeSelectionListener;
+import javax.swing.filechooser.FileSystemView;
 import javax.swing.plaf.basic.BasicButtonUI;
 import static org.ldtwo.GoTTS.G.*;
-import org.ldtwo.flashcard.CardFrame;
+import static org.ldtwo.GoTTS.Languages.*;
+import org.ldtwo.flashcard.FlashCardFrame;
+import org.ldtwo.flashcard.QuizPanel;
 import org.ldtwo.flashcard.ReviewPanel;
 
 /**
  *
  * @author Larry Moore
  */
-public final class Frame2 extends javax.swing.JFrame {
+public final class MainFrame extends javax.swing.JFrame {
+AudioPlayer player=AudioPlayer.getInstance();
+    public static boolean disabledEvents = false;
+    public static LinkedList<String> recentDeckFilesLinkedList = new LinkedList();
+    public static HashMap<String, String[]> recentDeckFilesMap = new HashMap<>();
+    public static final LinkedHashSet recentCache = new LinkedHashSet();
+    public static final LinkedList activeDownloads = new LinkedList();
+    static public MainFrame ths;
+    Thread downloadUIRefresher = new Thread("downloadUIRefresher-" + Math.random()) {
 
-    static public Frame2 ths;
+        @Override
+        public void run() {
+            try {
+                while (true) {
+                    Thread.sleep(200);
+                    synchronized (activeDownloads) {
+                        int j = 0;
+                        Object[] arr = activeDownloads.toArray();
+
+                        downloads.setListData(arr);
+                        //G.refresh(downloads);
+
+                    }
+                }
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        }
+
+    };
 
     /**
      * Creates new form Frame
      */
-    public Frame2() throws Exception {
+    private MainFrame() throws Exception {
         ths = this;
         initComponents();
         init();
+        player.start();
+        downloads.setCellRenderer(new DefaultListCellRenderer() {
+
+            Font font = new Font("helvitica", Font.BOLD, 24);
+
+            @Override
+            public Component getListCellRendererComponent(
+                    JList list, Object value, int index,
+                    boolean isSelected, boolean cellHasFocus) {
+
+//                JLabel label = (JLabel) super.getListCellRendererComponent(
+//                        list, value, index, isSelected, cellHasFocus);
+//                label.setIcon(imageMap.get((String) value));
+//                label.setHorizontalTextPosition(JLabel.RIGHT);
+//                label.setFont(font);
+                if (!(value instanceof Component)) {
+                    return new JLabel(value.toString());
+                }
+
+                return (Component) value;
+            }
+
+        });
+        MainFrame.downloads.setListData(activeDownloads.toArray());
         setSize(1000, 600);
+        downloadUIRefresher.start();
+        //====================
+        //recentFilesComboBox.removeAllItems();
+
+        try {
+            Scanner sc = new Scanner(new File(RECENT_DECKS_FILE)).useDelimiter("\\Z");
+            String[] files = sc.next().split("\n");
+            for (String line : files) {
+                String[] arr = line.split("\t");
+                System.out.println(Arrays.toString(arr));
+                if (arr.length < 1) {
+                    continue;
+                }
+                String fName = arr[0];
+                if (fName.trim().length() <= 0) {
+                    continue;
+                }
+                if (recentDeckFilesMap.containsKey(fName)) {
+                    recentDeckFilesMap.remove(fName);
+                    recentDeckFilesLinkedList.remove(fName);
+                }
+                recentDeckFilesLinkedList.addLast(fName);
+                recentDeckFilesMap.put(fName, arr);
+            }
+
+            disabledEvents = true;
+            refreshRecentFileList();
+            disabledEvents = false;
+            int idx = recentFilesComboBox.getSelectedIndex();
+            System.out.println("INDEX: " + idx);
+        } catch (FileNotFoundException ex) {
+            System.err.println("RECENT_DECKS_FILE is missing!");
+        } catch (Exception e) {
+            System.err.println("RECENT_DECKS_FILE is corrupted!");
+            e.printStackTrace();
+//            e.printStackTrace();
+        }
+        //==================
+        final java.lang.Runnable languageValidator = new java.lang.Runnable() {
+
+            @Override
+            public void run() {
+
+                boolean b = null != LA_LANGUAGE.get(leftLanguage.getText())
+                        && null != LA_LANGUAGE.get(rightLanguage.getText());
+                btnFlashCards.setEnabled(b);
+                btnStage1Review.setEnabled(b);
+                btnStage2All.setEnabled(b);
+                btnStage3Img.setEnabled(b);
+                btnStage4Aud.setEnabled(b);
+                btnStage5Aud.setEnabled(b);
+                btnStage6Text.setEnabled(b);
+                btnStage7Text.setEnabled(b);
+                btnStage8Text.setEnabled(b);
+
+            }
+        };
+
+        leftLanguage.addKeyListener(new LanguageMenuListener(leftLanguage) {
+
+            @Override
+            public void run() {
+                languageValidator.run();
+                super.run();
+            }
+
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                super.mouseClicked(e);
+                languageValidator.run();
+            }
+
+        });
+        rightLanguage.addKeyListener(new LanguageMenuListener(rightLanguage) {
+
+            @Override
+            public void run() {
+                languageValidator.run();
+                super.run();
+            }
+
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                super.mouseClicked(e);
+                languageValidator.run();
+            }
+
+        });
+        languageValidator.run();
+
+        //==================
         final Properties langProp = new Properties();
         try {
             langProp.load(new FileInputStream("lang_hist.txt"));
@@ -99,7 +250,7 @@ public final class Frame2 extends javax.swing.JFrame {
                 EditorPanel pan = getActiveTab();
                 int idx = tabPane.indexOfTab(pan.tabName);
                 if (idx >= 0) {
-                    ths.setTitle(
+                    MainFrame.this.setTitle(
                             tabPane.getTitleAt(idx)
                     );
                 }
@@ -119,7 +270,7 @@ public final class Frame2 extends javax.swing.JFrame {
         });
         Dimension dim = Toolkit.getDefaultToolkit().getScreenSize();
         this.setLocation(dim.width / 2 - this.getSize().width / 2, dim.height / 2 - this.getSize().height / 2);
-        ths.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
+        MainFrame.this.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
         refreshTree();
         Languages.refreshFavorites(favorites, this);
         setTitle("JGoogle TTS - English");
@@ -142,16 +293,16 @@ public final class Frame2 extends javax.swing.JFrame {
             openFile(new File("default text.txt"));//!!
             addPanel();
         }
-        JMenuItem item = Languages.newLanguageMenuItem("English (GB)");
-        item.addActionListener(new LanguageChangeAction(this, "English (GB)") {
+        JMenuItem item = Languages.newLanguageMenuItem("en_gb");
+        item.addActionListener(new LanguageChangeAction(this, "en_gb") {
             public void actionPerformed(ActionEvent e) {
                 super.actionPerformed(e);
-                if (ths == null) {
+                if (MainFrame.this == null) {
                     return;
                 }
-                EditorPanel pan = ths.getActiveTab();
+                EditorPanel pan = MainFrame.this.getActiveTab();
                 pan.la_ = la;
-                ths.updateTabTitle(ths.getTabTitle(pan), pan, ths.tabPane.getSelectedIndex());
+                MainFrame.this.updateTabTitle(MainFrame.this.getTabTitle(pan), pan, MainFrame.this.tabPane.getSelectedIndex());
 
             }
         });
@@ -173,7 +324,12 @@ public final class Frame2 extends javax.swing.JFrame {
                             }
                         }
                         String name = p.file == null ? p.tabName : p.file.getName();
-                        tabPane.setSelectedComponent(p);
+                        //tabPane.add(p); //TODO: this is a fix, but why?
+                        try {
+                            tabPane.setSelectedComponent(p);
+                        } catch (Exception ex) {
+                            ex.printStackTrace();
+                        }
                         result = JOptionPane.showConfirmDialog(null,
                                 "Would you like to save this? " + name);
                         if (result == JOptionPane.YES_OPTION) {
@@ -222,7 +378,7 @@ public final class Frame2 extends javax.swing.JFrame {
         EditorPanel pan = new EditorPanel();
         G.tabList.addLast(pan);
         tabPane.add(pan);
-        String name = G.LA_LANGUAGE.get(pan.la_);
+        String name = LA_LANGUAGE.get(pan.la_);
         int index = tabPane.getTabCount() - 1;
         updateTabTitle(name, pan, index);
         tabPane.setTabComponentAt(index, new TabComponent(tabPane));
@@ -273,18 +429,7 @@ public final class Frame2 extends javax.swing.JFrame {
         jPopupMenu1 = new javax.swing.JPopupMenu();
         jPanel1 = new javax.swing.JPanel();
         jSplitPane1 = new javax.swing.JSplitPane();
-        jSplitPane2 = new javax.swing.JSplitPane();
-        jScrollPane5 = new javax.swing.JScrollPane();
-        jScrollPane6 = new javax.swing.JScrollPane();
-        tabPane = new javax.swing.JTabbedPane();
-        jScrollPane2 = new javax.swing.JScrollPane();
-        lst = new javax.swing.JList();
         jTabbedPane1 = new javax.swing.JTabbedPane();
-        jPanel2 = new javax.swing.JPanel();
-        leftScrollPane = new javax.swing.JScrollPane();
-        jPanel4 = new javax.swing.JPanel();
-        jScrollPane1 = new javax.swing.JScrollPane();
-        downloads = new javax.swing.JList();
         jPanel3 = new javax.swing.JPanel();
         btnStage1Review = new javax.swing.JButton();
         btnFlashCards = new javax.swing.JButton();
@@ -304,11 +449,25 @@ public final class Frame2 extends javax.swing.JFrame {
         num8 = new javax.swing.JSpinner();
         jScrollPane3 = new javax.swing.JScrollPane();
         jTextArea1 = new javax.swing.JTextArea();
+        recentFilesComboBox = new javax.swing.JComboBox();
+        btnOpenDeck = new javax.swing.JButton();
+        leftLanguage = new javax.swing.JTextField();
+        rightLanguage = new javax.swing.JTextField();
+        jPanel4 = new javax.swing.JPanel();
+        jScrollPane1 = new javax.swing.JScrollPane();
+        jPanel2 = new javax.swing.JPanel();
+        leftScrollPane = new javax.swing.JScrollPane();
+        jSplitPane2 = new javax.swing.JSplitPane();
+        jScrollPane5 = new javax.swing.JScrollPane();
+        jScrollPane6 = new javax.swing.JScrollPane();
+        tabPane = new javax.swing.JTabbedPane();
+        jScrollPane2 = new javax.swing.JScrollPane();
+        lst = new javax.swing.JList();
         jToolBar1 = new javax.swing.JToolBar();
         jMenuBar1 = new javax.swing.JMenuBar();
-        jMenu1 = new javax.swing.JMenu();
+        fileMenu = new javax.swing.JMenu();
         menuFlashCards = new javax.swing.JMenuItem();
-        jMenuItem10 = new javax.swing.JMenuItem();
+        menuReviewCards = new javax.swing.JMenuItem();
         jMenuItem1 = new javax.swing.JMenuItem();
         saveCurrentTab = new javax.swing.JMenuItem();
         saveAs = new javax.swing.JMenuItem();
@@ -350,67 +509,10 @@ public final class Frame2 extends javax.swing.JFrame {
         jSplitPane1.setDividerLocation(250);
         jSplitPane1.setDividerSize(7);
 
-        jSplitPane2.setDividerLocation(600);
-        jSplitPane2.setDividerSize(7);
-        jSplitPane2.setResizeWeight(1.0);
-        jSplitPane2.setToolTipText("");
-        jSplitPane2.setPreferredSize(new java.awt.Dimension(800, 132));
-        jSplitPane2.setRightComponent(jScrollPane5);
-
-        tabPane.setTabLayoutPolicy(javax.swing.JTabbedPane.SCROLL_TAB_LAYOUT);
-        tabPane.setTabPlacement(javax.swing.JTabbedPane.RIGHT);
-        tabPane.setToolTipText("");
-        tabPane.setFont(new java.awt.Font("Arial Unicode MS", 0, 12)); // NOI18N
-        tabPane.addMouseWheelListener(new java.awt.event.MouseWheelListener() {
-            public void mouseWheelMoved(java.awt.event.MouseWheelEvent evt) {
-                tabPaneMouseWheelMoved(evt);
-            }
-        });
-        jScrollPane6.setViewportView(tabPane);
-
-        jSplitPane2.setLeftComponent(jScrollPane6);
-
-        lst.setBackground(new java.awt.Color(0, 0, 51));
-        lst.setForeground(new java.awt.Color(255, 255, 204));
-        lst.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
-        lst.setPreferredSize(new java.awt.Dimension(50, 0));
-        jScrollPane2.setViewportView(lst);
-
-        jSplitPane2.setRightComponent(jScrollPane2);
-
-        jSplitPane1.setRightComponent(jSplitPane2);
-
         Dimension dim=new Dimension(100, 100);
         jTabbedPane1.setPreferredSize(dim);
         jTabbedPane1.setMinimumSize(dim);
         jTabbedPane1.setTabPlacement(javax.swing.JTabbedPane.BOTTOM);
-
-        jPanel2.setLayout(new java.awt.GridLayout());
-        jPanel2.add(leftScrollPane);
-
-        jTabbedPane1.addTab("Cached Files", jPanel2);
-
-        downloads.setModel(new javax.swing.AbstractListModel() {
-            String[] strings = { "Item 1", "Item 2", "Item 3", "Item 4", "Item 5" };
-            public int getSize() { return strings.length; }
-            public Object getElementAt(int i) { return strings[i]; }
-        });
-        jScrollPane1.setViewportView(downloads);
-
-        javax.swing.GroupLayout jPanel4Layout = new javax.swing.GroupLayout(jPanel4);
-        jPanel4.setLayout(jPanel4Layout);
-        jPanel4Layout.setHorizontalGroup(
-            jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 244, Short.MAX_VALUE)
-        );
-        jPanel4Layout.setVerticalGroup(
-            jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(jPanel4Layout.createSequentialGroup()
-                .addContainerGap()
-                .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 373, Short.MAX_VALUE))
-        );
-
-        jTabbedPane1.addTab("Downloads", jPanel4);
 
         btnStage1Review.setFont(new java.awt.Font("Tahoma", 0, 14)); // NOI18N
         btnStage1Review.setText("1) Review");
@@ -509,6 +611,34 @@ public final class Frame2 extends javax.swing.JFrame {
         jTextArea1.setFocusable(false);
         jScrollPane3.setViewportView(jTextArea1);
 
+        recentFilesComboBox.setModel(new javax.swing.DefaultComboBoxModel(new String[] { "Item 1", "Item 2", "Item 3", "Item 4" }));
+        recentFilesComboBox.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                recentFilesComboBoxMouseClicked(evt);
+            }
+        });
+        recentFilesComboBox.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                recentFilesComboBoxActionPerformed(evt);
+            }
+        });
+
+        btnOpenDeck.setText("Load");
+        btnOpenDeck.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnOpenDeckActionPerformed(evt);
+            }
+        });
+
+        leftLanguage.setText("fr");
+        leftLanguage.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                leftLanguageActionPerformed(evt);
+            }
+        });
+
+        rightLanguage.setText("en");
+
         javax.swing.GroupLayout jPanel3Layout = new javax.swing.GroupLayout(jPanel3);
         jPanel3.setLayout(jPanel3Layout);
         jPanel3Layout.setHorizontalGroup(
@@ -516,46 +646,62 @@ public final class Frame2 extends javax.swing.JFrame {
             .addGroup(jPanel3Layout.createSequentialGroup()
                 .addContainerGap()
                 .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(jScrollPane3)
-                    .addGroup(jPanel3Layout.createSequentialGroup()
-                        .addComponent(btnStage2All, javax.swing.GroupLayout.PREFERRED_SIZE, 184, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(num2, javax.swing.GroupLayout.DEFAULT_SIZE, 34, Short.MAX_VALUE))
-                    .addGroup(jPanel3Layout.createSequentialGroup()
-                        .addComponent(btnStage3Img, javax.swing.GroupLayout.PREFERRED_SIZE, 184, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(num3))
-                    .addGroup(jPanel3Layout.createSequentialGroup()
-                        .addComponent(btnStage4Aud, javax.swing.GroupLayout.PREFERRED_SIZE, 184, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(num4))
-                    .addGroup(jPanel3Layout.createSequentialGroup()
-                        .addComponent(btnStage5Aud, javax.swing.GroupLayout.PREFERRED_SIZE, 184, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(num5))
-                    .addGroup(jPanel3Layout.createSequentialGroup()
-                        .addComponent(btnStage6Text, javax.swing.GroupLayout.PREFERRED_SIZE, 184, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(num6))
-                    .addGroup(jPanel3Layout.createSequentialGroup()
-                        .addComponent(btnStage7Text, javax.swing.GroupLayout.PREFERRED_SIZE, 184, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(num7))
-                    .addGroup(jPanel3Layout.createSequentialGroup()
-                        .addComponent(btnStage8Text, javax.swing.GroupLayout.PREFERRED_SIZE, 184, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(num8))
+                    .addComponent(recentFilesComboBox, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addGroup(jPanel3Layout.createSequentialGroup()
                         .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(btnFlashCards, javax.swing.GroupLayout.PREFERRED_SIZE, 184, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addComponent(btnStage1Review, javax.swing.GroupLayout.PREFERRED_SIZE, 184, javax.swing.GroupLayout.PREFERRED_SIZE))
-                        .addGap(0, 0, Short.MAX_VALUE)))
-                .addContainerGap())
+                            .addComponent(jScrollPane3)
+                            .addGroup(jPanel3Layout.createSequentialGroup()
+                                .addComponent(btnStage2All, javax.swing.GroupLayout.PREFERRED_SIZE, 184, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(num2, javax.swing.GroupLayout.DEFAULT_SIZE, 34, Short.MAX_VALUE))
+                            .addGroup(jPanel3Layout.createSequentialGroup()
+                                .addComponent(btnStage3Img, javax.swing.GroupLayout.PREFERRED_SIZE, 184, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(num3))
+                            .addGroup(jPanel3Layout.createSequentialGroup()
+                                .addComponent(btnStage4Aud, javax.swing.GroupLayout.PREFERRED_SIZE, 184, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(num4))
+                            .addGroup(jPanel3Layout.createSequentialGroup()
+                                .addComponent(btnStage5Aud, javax.swing.GroupLayout.PREFERRED_SIZE, 184, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(num5))
+                            .addGroup(jPanel3Layout.createSequentialGroup()
+                                .addComponent(btnStage6Text, javax.swing.GroupLayout.PREFERRED_SIZE, 184, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(num6))
+                            .addGroup(jPanel3Layout.createSequentialGroup()
+                                .addComponent(btnStage7Text, javax.swing.GroupLayout.PREFERRED_SIZE, 184, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(num7))
+                            .addGroup(jPanel3Layout.createSequentialGroup()
+                                .addComponent(btnStage8Text, javax.swing.GroupLayout.PREFERRED_SIZE, 184, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(num8))
+                            .addGroup(jPanel3Layout.createSequentialGroup()
+                                .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                    .addComponent(btnFlashCards, javax.swing.GroupLayout.PREFERRED_SIZE, 184, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                    .addComponent(btnStage1Review, javax.swing.GroupLayout.PREFERRED_SIZE, 184, javax.swing.GroupLayout.PREFERRED_SIZE))
+                                .addGap(0, 0, Short.MAX_VALUE))
+                            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel3Layout.createSequentialGroup()
+                                .addComponent(leftLanguage, javax.swing.GroupLayout.PREFERRED_SIZE, 55, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(rightLanguage, javax.swing.GroupLayout.PREFERRED_SIZE, 57, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                .addComponent(btnOpenDeck)))
+                        .addContainerGap())))
         );
         jPanel3Layout.setVerticalGroup(
             jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel3Layout.createSequentialGroup()
                 .addContainerGap()
+                .addComponent(recentFilesComboBox, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(btnOpenDeck)
+                    .addComponent(leftLanguage, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(rightLanguage, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(btnFlashCards)
                 .addGap(4, 4, 4)
                 .addComponent(btnStage1Review)
@@ -588,18 +734,75 @@ public final class Frame2 extends javax.swing.JFrame {
                     .addComponent(btnStage8Text)
                     .addComponent(num8, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jScrollPane3))
+                .addComponent(jScrollPane3, javax.swing.GroupLayout.DEFAULT_SIZE, 191, Short.MAX_VALUE))
         );
 
         jTabbedPane1.addTab("Learning Plan", jPanel3);
 
+        downloads.setModel(new javax.swing.AbstractListModel() {
+            String[] strings = { "Item 1", "Item 2", "Item 3", "Item 4", "Item 5" };
+            public int getSize() { return strings.length; }
+            public Object getElementAt(int i) { return strings[i]; }
+        });
+        jScrollPane1.setViewportView(downloads);
+
+        javax.swing.GroupLayout jPanel4Layout = new javax.swing.GroupLayout(jPanel4);
+        jPanel4.setLayout(jPanel4Layout);
+        jPanel4Layout.setHorizontalGroup(
+            jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 244, Short.MAX_VALUE)
+        );
+        jPanel4Layout.setVerticalGroup(
+            jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel4Layout.createSequentialGroup()
+                .addContainerGap()
+                .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 523, Short.MAX_VALUE))
+        );
+
+        jTabbedPane1.addTab("Downloads", jPanel4);
+
+        jPanel2.setLayout(new java.awt.GridLayout(1, 0));
+        jPanel2.add(leftScrollPane);
+
+        jTabbedPane1.addTab("Audio Cache", jPanel2);
+
         jSplitPane1.setLeftComponent(jTabbedPane1);
+
+        jSplitPane2.setDividerLocation(600);
+        jSplitPane2.setDividerSize(7);
+        jSplitPane2.setResizeWeight(1.0);
+        jSplitPane2.setToolTipText("");
+        jSplitPane2.setPreferredSize(new java.awt.Dimension(800, 132));
+        jSplitPane2.setRightComponent(jScrollPane5);
+
+        tabPane.setTabLayoutPolicy(javax.swing.JTabbedPane.SCROLL_TAB_LAYOUT);
+        tabPane.setTabPlacement(javax.swing.JTabbedPane.RIGHT);
+        tabPane.setToolTipText("");
+        tabPane.setFont(new java.awt.Font("Arial Unicode MS", 0, 12)); // NOI18N
+        tabPane.addMouseWheelListener(new java.awt.event.MouseWheelListener() {
+            public void mouseWheelMoved(java.awt.event.MouseWheelEvent evt) {
+                tabPaneMouseWheelMoved(evt);
+            }
+        });
+        jScrollPane6.setViewportView(tabPane);
+
+        jSplitPane2.setLeftComponent(jScrollPane6);
+
+        lst.setBackground(new java.awt.Color(0, 0, 51));
+        lst.setForeground(new java.awt.Color(255, 255, 204));
+        lst.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
+        lst.setPreferredSize(new java.awt.Dimension(50, 0));
+        jScrollPane2.setViewportView(lst);
+
+        jSplitPane2.setRightComponent(jScrollPane2);
+
+        jSplitPane1.setRightComponent(jSplitPane2);
 
         jPanel1.add(jSplitPane1);
 
         jToolBar1.setRollover(true);
 
-        jMenu1.setText("File");
+        fileMenu.setText("File");
 
         menuFlashCards.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_F, java.awt.event.InputEvent.ALT_MASK));
         menuFlashCards.setText("Flash Cards");
@@ -608,16 +811,16 @@ public final class Frame2 extends javax.swing.JFrame {
                 menuFlashCardsActionPerformed(evt);
             }
         });
-        jMenu1.add(menuFlashCards);
+        fileMenu.add(menuFlashCards);
 
-        jMenuItem10.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_R, java.awt.event.InputEvent.ALT_MASK));
-        jMenuItem10.setText("Review Cards");
-        jMenuItem10.addActionListener(new java.awt.event.ActionListener() {
+        menuReviewCards.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_R, java.awt.event.InputEvent.ALT_MASK));
+        menuReviewCards.setText("Review Cards");
+        menuReviewCards.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                jMenuItem10ActionPerformed(evt);
+                menuReviewCardsActionPerformed(evt);
             }
         });
-        jMenu1.add(jMenuItem10);
+        fileMenu.add(menuReviewCards);
 
         jMenuItem1.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_O, java.awt.event.InputEvent.CTRL_MASK));
         jMenuItem1.setText("Open");
@@ -626,7 +829,7 @@ public final class Frame2 extends javax.swing.JFrame {
                 jMenuItem1ActionPerformed(evt);
             }
         });
-        jMenu1.add(jMenuItem1);
+        fileMenu.add(jMenuItem1);
 
         saveCurrentTab.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_S, java.awt.event.InputEvent.SHIFT_MASK | java.awt.event.InputEvent.CTRL_MASK));
         saveCurrentTab.setText("Save");
@@ -635,7 +838,7 @@ public final class Frame2 extends javax.swing.JFrame {
                 saveCurrentTabActionPerformed(evt);
             }
         });
-        jMenu1.add(saveCurrentTab);
+        fileMenu.add(saveCurrentTab);
 
         saveAs.setText("Save as ...");
         saveAs.addActionListener(new java.awt.event.ActionListener() {
@@ -643,7 +846,7 @@ public final class Frame2 extends javax.swing.JFrame {
                 saveAsActionPerformed(evt);
             }
         });
-        jMenu1.add(saveAs);
+        fileMenu.add(saveAs);
 
         saveAllTabs.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_S, java.awt.event.InputEvent.ALT_MASK | java.awt.event.InputEvent.CTRL_MASK));
         saveAllTabs.setText("Save All");
@@ -652,7 +855,7 @@ public final class Frame2 extends javax.swing.JFrame {
                 saveAllTabsActionPerformed(evt);
             }
         });
-        jMenu1.add(saveAllTabs);
+        fileMenu.add(saveAllTabs);
 
         newTabMenuItem.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_N, java.awt.event.InputEvent.CTRL_MASK));
         newTabMenuItem.setText("New Tab");
@@ -661,14 +864,14 @@ public final class Frame2 extends javax.swing.JFrame {
                 newTabMenuItemActionPerformed(evt);
             }
         });
-        jMenu1.add(newTabMenuItem);
-        jMenu1.add(jSeparator1);
+        fileMenu.add(newTabMenuItem);
+        fileMenu.add(jSeparator1);
 
         jMenuItem2.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_Q, java.awt.event.InputEvent.CTRL_MASK));
         jMenuItem2.setText("Exit");
-        jMenu1.add(jMenuItem2);
+        fileMenu.add(jMenuItem2);
 
-        jMenuBar1.add(jMenu1);
+        jMenuBar1.add(fileMenu);
 
         jMenu2.setText("[0 sec]");
         jMenu2.setEnabled(false);
@@ -833,15 +1036,15 @@ public final class Frame2 extends javax.swing.JFrame {
     public void playAction() {
 
         if (play) {
-            if (pause) {
-                pause = false;
+            if (pause.get()) {
+                    G.pause.set(false);
             } else {
                 //error?
             }
             return;
         }
         play = true;
-        pause = false;
+                    G.pause.set(false);
         playMP3s(false);
         refreshTree();
     }
@@ -896,14 +1099,14 @@ public final class Frame2 extends javax.swing.JFrame {
             pan.monitor = true;
             return pan;
         } catch (Exception ex) {
-            Logger.getLogger(Frame2.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(MainFrame.class.getName()).log(Level.SEVERE, null, ex);
         } finally {
 //            try {
 //                if (br != null) {
 //                    br.close();
 //                }
 //            } catch (IOException ex) {
-//                Logger.getLogger(Frame2.class.getName()).log(Level.SEVERE, null, ex);
+//                Logger.getLogger(MainFrame.class.getName()).log(Level.SEVERE, null, ex);
 //            }
         }
         return null;
@@ -923,7 +1126,7 @@ public final class Frame2 extends javax.swing.JFrame {
 
     public void stopAction() {
         play = false;
-        pause = false;
+                    G.pause.set(false);
         refreshTree();
         Languages.refreshFavorites(favorites, this);
 
@@ -995,7 +1198,7 @@ public final class Frame2 extends javax.swing.JFrame {
 
     public void playRandAction() {
         play = true;
-        pause = false;
+                    G.pause.set(false);
         playMP3s(true);
         refreshTree();
     }
@@ -1028,7 +1231,11 @@ public final class Frame2 extends javax.swing.JFrame {
 
     private void pauseItemActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_pauseItemActionPerformed
 
-        pause = !pause;
+        boolean b=pause.get();
+        pause.set(!b);
+        //pause = !pause;
+        
+                   
 
     }//GEN-LAST:event_pauseItemActionPerformed
 
@@ -1105,9 +1312,9 @@ public final class Frame2 extends javax.swing.JFrame {
         java.awt.EventQueue.invokeLater(new java.lang.Runnable() {
             public void run() {
                 try {
-                    new CardFrame(ths).setVisible(true);
+                    new FlashCardFrame(MainFrame.this, selectedFile(), leftLanguage.getText(), rightLanguage.getText()).setVisible(true);
                 } catch (Exception ex) {
-                    Logger.getLogger(CardFrame.class.getName()).log(Level.SEVERE, null, ex);
+                    Logger.getLogger(FlashCardFrame.class.getName()).log(Level.SEVERE, null, ex);
                 }
             }
         });
@@ -1115,26 +1322,39 @@ public final class Frame2 extends javax.swing.JFrame {
 
     private void jMenuItem9ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenuItem9ActionPerformed
 
-        pause = true;
+                    G.pause.set(true);
         skip = true;
         skipDelta = -2 * 16000 / 2;//1/2 sec
-        pause = false;
+                    G.pause.set(false);
 
     }//GEN-LAST:event_jMenuItem9ActionPerformed
 
-    private void jMenuItem10ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenuItem10ActionPerformed
-        try {
-            ReviewPanel rp = new ReviewPanel(ths, new JFrame(), null);
+    private void menuReviewCardsActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_menuReviewCardsActionPerformed
+        java.lang.Runnable r = new java.lang.Runnable() {
+            public void run() {
+                try {
+                    JFrame frame = new JFrame(String.format("%s <> %s ", leftLanguage.getText(), rightLanguage.getText()));
+                    final ReviewPanel rp = new ReviewPanel(MainFrame.this, frame, null, selectedFile(), leftLanguage.getText(), rightLanguage.getText());
+                    WindowAdapter wa = new WindowAdapter() {
+                        @Override
+                        public void windowClosing(WindowEvent e) {
+                            rp.imageDownloader.shutdown();
+                            rp.imageDownloader = null;
+                        }
+                    };
+                    frame.addWindowListener(wa);
 
-        } catch (Exception ex) {
-            Logger.getLogger(Frame2.class.getName()).log(Level.SEVERE, null, ex);
-        }
+                } catch (Exception ex) {
+                    Logger.getLogger(MainFrame.class.getName()).log(Level.SEVERE, null, ex);
+                }
+            }
+        };
+        AudioPlayer.executor.submit(r);
 
-
-    }//GEN-LAST:event_jMenuItem10ActionPerformed
+    }//GEN-LAST:event_menuReviewCardsActionPerformed
 
     private void btnStage1ReviewActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnStage1ReviewActionPerformed
-        jMenuItem10ActionPerformed(evt);
+        menuReviewCardsActionPerformed(evt);
     }//GEN-LAST:event_btnStage1ReviewActionPerformed
 
     private void btnFlashCardsActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnFlashCardsActionPerformed
@@ -1142,7 +1362,40 @@ public final class Frame2 extends javax.swing.JFrame {
     }//GEN-LAST:event_btnFlashCardsActionPerformed
 
     private void btnStage2AllActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnStage2AllActionPerformed
+final HashMap<String,String> rules=new HashMap<>();
+rules.put("left-audio", "");
+rules.put("right-audio", "");
+rules.put("left-text", "");
+rules.put("right-text", "");
+rules.put("right-image", "");
+rules.put("left-image", "");
 
+rules.put("image-count", "2");
+rules.put("num-options", "4");
+
+        java.lang.Runnable r = new java.lang.Runnable() {
+            public void run() {
+                try {
+                    JFrame frame = new JFrame(String.format("%s <> %s ", leftLanguage.getText(), rightLanguage.getText()));
+                    final QuizPanel pan = new QuizPanel(MainFrame.this, frame, 
+                            null, selectedFile(), leftLanguage.getText(), rightLanguage.getText(), rules);
+                    WindowAdapter wa = new WindowAdapter() {
+                        @Override
+                        public void windowClosing(WindowEvent e) {
+                            pan.imageDownloader.shutdown();
+                            pan.imageDownloader = null;
+                        }
+                    };
+                    frame.addWindowListener(wa);
+
+                } catch (Exception ex) {
+                    Logger.getLogger(MainFrame.class.getName()).log(Level.SEVERE, null, ex);
+                }
+            }
+        };
+        AudioPlayer.executor.submit(r);
+        
+        
     }//GEN-LAST:event_btnStage2AllActionPerformed
 
     private void btnStage3ImgActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnStage3ImgActionPerformed
@@ -1169,6 +1422,137 @@ public final class Frame2 extends javax.swing.JFrame {
 
     }//GEN-LAST:event_btnStage8TextActionPerformed
 
+    private void btnOpenDeckActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnOpenDeckActionPerformed
+
+        try {
+            if (importDeckFiles()) {
+                return;
+            }
+            refreshRecentFileList();
+            if (recentDeckFilesLinkedList.size() > 0) {
+                saveRecentDeckFile();
+            }
+        } catch (Exception e) {
+            System.err.println("recentDecks is missing or corrupted!");
+            e.printStackTrace();
+        }
+
+    }//GEN-LAST:event_btnOpenDeckActionPerformed
+
+    public boolean importDeckFiles() throws HeadlessException {
+        //LinkedHashSet<String> files = new LinkedHashSet();
+        //=====================  ADD MORE FILES
+        JFileChooser fc = G.fileChooser;
+        fc.setMultiSelectionEnabled(true);
+        fc.setFileSelectionMode(JFileChooser.FILES_ONLY);
+        fc.setFileSystemView(FileSystemView.getFileSystemView());
+        fc.showOpenDialog(this);
+        File[] selected = fc.getSelectedFiles();
+        if (selected == null) {
+            return true;
+        }
+        if (selected.length < 1) {
+            return true;
+        }
+        for (File f : selected) {
+            String fName = f.getName();
+            String[] arr = new String[]{fName, leftLanguage.getText(), rightLanguage.getText()};
+            if (recentDeckFilesMap.containsKey(fName)) {
+                arr = recentDeckFilesMap.get(fName);
+                recentDeckFilesLinkedList.remove(fName);
+            }
+            recentDeckFilesLinkedList.addFirst(fName);
+            recentDeckFilesMap.put(fName, arr);
+        }
+        return false;
+    }
+
+    synchronized public void refreshRecentFileList() {
+        recentFilesComboBox.removeAllItems();
+        for (String fName : recentDeckFilesLinkedList) {
+            File f = new File(fName);
+            if (f.exists() && f.isFile()) {
+                recentFilesComboBox.addItem(fName);
+            }
+        }
+
+        Object item = recentFilesComboBox.getSelectedItem();
+        if (item != null) {
+            String[] arr = recentDeckFilesMap.get(item.toString());
+            if (arr.length < 3) {
+                return;
+            }
+            leftLanguage.setText(arr[1]);
+            rightLanguage.setText(arr[2]);
+        }
+    }
+
+    public boolean saveRecentDeckFile() throws FileNotFoundException, IOException {
+        //=====================  SAVE FILE
+        FileOutputStream os = new FileOutputStream(RECENT_DECKS_FILE);
+        byte[] DELIM = "\n".getBytes();
+        byte[] TAB = "\t".getBytes();
+        if (recentDeckFilesLinkedList.size() <= 0) {
+            return true;
+        }
+        for (String fName : recentDeckFilesLinkedList) {
+            String f = fName;
+            if (f == null) {
+                continue;
+            }
+            String[] arr = recentDeckFilesMap.get(f);
+            os.write(f.getBytes());
+            if (arr != null && arr.length >= 3) {
+                os.write(TAB);
+                os.write(arr[1].getBytes());
+                os.write(TAB);
+                os.write(arr[2].getBytes());
+            }
+            os.write(DELIM);
+        }
+        os.close();
+        return false;
+    }
+
+    private void leftLanguageActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_leftLanguageActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_leftLanguageActionPerformed
+
+    private void recentFilesComboBoxActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_recentFilesComboBoxActionPerformed
+
+        if (disabledEvents) {
+            return;
+        }
+
+        Object item = recentFilesComboBox.getSelectedItem();
+        if (item != null) {
+            recentDeckFilesLinkedList.remove(item.toString());
+            recentDeckFilesLinkedList.addFirst(item.toString());
+        }
+        refreshRecentFileList();
+        try {
+            //save
+            if (recentDeckFilesLinkedList.size() > 0) {
+                saveRecentDeckFile();
+            }
+        } catch (Exception e) {
+            System.err.println("recentDecks is missing or corrupted!");
+            e.printStackTrace();
+        }
+
+    }//GEN-LAST:event_recentFilesComboBoxActionPerformed
+
+    private void recentFilesComboBoxMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_recentFilesComboBoxMouseClicked
+
+        Object item = recentFilesComboBox.getSelectedItem();
+        if (item != null) {
+            recentDeckFilesMap.put(item.toString(), new String[]{
+                item.toString(), leftLanguage.getText(), rightLanguage.getText()});
+        }
+
+// TODO add your handling code here:
+    }//GEN-LAST:event_recentFilesComboBoxMouseClicked
+
     /**
      * @param args the command line arguments
      */
@@ -1177,18 +1561,20 @@ public final class Frame2 extends javax.swing.JFrame {
             public void run_() {
                 try {
                     try {
-                        for (LookAndFeelInfo info : UIManager.getInstalledLookAndFeels()) {
-                            if ("Nimbus".equals(info.getName())) {
-                                UIManager.setLookAndFeel(info.getClassName());
-                                break;
-                            }
-                        }
+
+                        UIManager.setLookAndFeel("com.sun.java.swing.plaf.windows.WindowsLookAndFeel");
+//                        for (LookAndFeelInfo info : UIManager.getInstalledLookAndFeels()) {
+//                            if ("Nimbus".equals(info.getName())) {
+//                                UIManager.setLookAndFeel(info.getClassName());
+//                                break;
+//                            }
+//                        }
                     } catch (Exception e) {
                         // If Nimbus is not available, you can set the GUI to another look and feel.
                     }
-                    new Frame2().setVisible(true);
+                    new MainFrame().setVisible(true);
                 } catch (Exception ex) {
-                    Logger.getLogger(Frame2.class.getName()).log(Level.SEVERE, null, ex);
+                    Logger.getLogger(MainFrame.class.getName()).log(Level.SEVERE, null, ex);
                     System.exit(1);
                 }
             }
@@ -1196,6 +1582,7 @@ public final class Frame2 extends javax.swing.JFrame {
     }
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton btnFlashCards;
+    private javax.swing.JButton btnOpenDeck;
     private javax.swing.JButton btnStage1Review;
     private javax.swing.JButton btnStage2All;
     private javax.swing.JButton btnStage3Img;
@@ -1206,11 +1593,11 @@ public final class Frame2 extends javax.swing.JFrame {
     private javax.swing.JButton btnStage8Text;
     private javax.swing.JMenuItem delayDec;
     private javax.swing.JMenuItem delayInc;
-    private javax.swing.JList downloads;
+    public static final javax.swing.JList downloads = new javax.swing.JList();
     private javax.swing.JMenu favorites;
+    private javax.swing.JMenu fileMenu;
     private javax.swing.JMenuItem fontDec;
     private javax.swing.JMenuItem fontInc;
-    private javax.swing.JMenu jMenu1;
     private javax.swing.JMenu jMenu2;
     private javax.swing.JMenu jMenu3;
     private javax.swing.JMenu jMenu4;
@@ -1219,7 +1606,6 @@ public final class Frame2 extends javax.swing.JFrame {
     private javax.swing.JMenuBar jMenuBar1;
     private javax.swing.JMenuBar jMenuBar2;
     private javax.swing.JMenuItem jMenuItem1;
-    private javax.swing.JMenuItem jMenuItem10;
     private javax.swing.JMenuItem jMenuItem2;
     private javax.swing.JMenuItem jMenuItem3;
     private javax.swing.JMenuItem jMenuItem4;
@@ -1246,9 +1632,11 @@ public final class Frame2 extends javax.swing.JFrame {
     private javax.swing.JTextArea jTextArea1;
     private javax.swing.JToolBar jToolBar1;
     private javax.swing.JMenu lang;
+    private javax.swing.JTextField leftLanguage;
     private javax.swing.JScrollPane leftScrollPane;
     private javax.swing.JList lst;
     private javax.swing.JMenuItem menuFlashCards;
+    private javax.swing.JMenuItem menuReviewCards;
     private javax.swing.JMenuItem newTabMenuItem;
     private javax.swing.JSpinner num2;
     private javax.swing.JSpinner num3;
@@ -1259,6 +1647,8 @@ public final class Frame2 extends javax.swing.JFrame {
     private javax.swing.JSpinner num8;
     private javax.swing.JMenuItem pauseItem;
     private javax.swing.JMenuItem randomPlayItem;
+    private javax.swing.JComboBox recentFilesComboBox;
+    private javax.swing.JTextField rightLanguage;
     private javax.swing.JMenuItem saveAllTabs;
     private javax.swing.JMenuItem saveAs;
     private javax.swing.JMenuItem saveCurrentTab;
@@ -1315,27 +1705,27 @@ public final class Frame2 extends javax.swing.JFrame {
         return list;
     }
 
-    public File getMP3() {
-        return getMP3(getActiveTab().txt.getText());
-    }
-
-    public File playMP3() {
-        return playMP3(getActiveTab().txt.getText());
-    }
-
-    public void playMP3(File f) {
-        if (!f.isDirectory() && f.getName().toLowerCase().endsWith(".mp3")) {
-            new Worker(getActiveTab().la_).play(f);
-        }
-    }
-
-    public File playMP3(String s) {
-        return new Worker(getActiveTab().la_).getAndPlay((s), true);
-    }
-
-    public File getMP3(String s) {
-        return new Worker(getActiveTab().la_).getAndPlay((s), false);
-    }
+//    public File getMP3() {
+//        return getMP3(getActiveTab().txt.getText(), getActiveTab().la_);
+//    }
+//
+//    public File playMP3() {
+//        return playMP3(getActiveTab().txt.getText(), getActiveTab().la_);
+//    }
+//
+//    public void playMP3(File f) {
+//        if (!f.isDirectory() && f.getName().toLowerCase().endsWith(".mp3")) {
+//            AudioPlayer.getInstance().enqueue(getActiveTab().la_, f);
+//        }
+//    }
+//
+//    public File playMP3(String s, String la) {
+//        return AudioPlayer.getInstance().enqueue(la,s, true);
+//    }
+//
+//    public File getMP3(String s, String la) {
+//        return AudioPlayer.getMP3(s, la);
+//    }
 
     public void playMP3s(final boolean random) {
         System.out.println("STARTING..." + new Date().toLocaleString());
@@ -1383,8 +1773,11 @@ public final class Frame2 extends javax.swing.JFrame {
                                 } catch (Exception e) {
                                     System.out.println("ERROR: list file=" + ((File) f).getAbsolutePath());
                                 }
-                                try {
-                                    playMP3((File) f);
+                                try { 
+                                    File file=((File) f);
+                                    if (!file.isDirectory() && file.getName().toLowerCase().endsWith(".mp3")) {
+            AudioPlayer.getInstance().enqueue(file);
+        }
                                 } catch (Exception e) {
                                     e.printStackTrace();
                                 }
@@ -1393,7 +1786,7 @@ public final class Frame2 extends javax.swing.JFrame {
                                 //zzzsleep((Long) f);//scripted delay
                             } else if (!random) {
                                 play = false;
-                                pause = false;
+                    G.pause.set(false);
                                 lst.invalidate();
                                 lst.repaint();
                                 lst.validate();
@@ -1432,7 +1825,7 @@ public final class Frame2 extends javax.swing.JFrame {
                     } else if (ch == '-') {
                         files.addLast(20L);
                     } else {
-                        file = SIMULATION ? new File(str) : getMP3(str);
+                        file = SIMULATION ? new File(str) :  AudioPlayer.getMP3(str, getActiveTab().la_);
                         files.addLast(20L);
                         files.addLast(file);
                         files.addLast(20L);
@@ -1444,7 +1837,7 @@ public final class Frame2 extends javax.swing.JFrame {
                 }
             } else if (str.trim().length() > 1) {
                 //str=format(str);
-                file = SIMULATION ? new File(str) : getMP3(str);
+                file = SIMULATION ? new File(str) :  AudioPlayer.getMP3(str, getActiveTab().la_);
                 try {
                     synchronized (files) {
                         files.addLast(file);
@@ -1487,12 +1880,12 @@ public final class Frame2 extends javax.swing.JFrame {
             item.addActionListener(new LanguageChangeAction(this, str[0]) {
                 public void actionPerformed(ActionEvent e) {
                     super.actionPerformed(e);
-                    if (ths == null) {
+                    if (MainFrame.this == null) {
                         return;
                     }
-                    EditorPanel pan = ths.getActiveTab();
+                    EditorPanel pan = MainFrame.this.getActiveTab();
                     pan.la_ = la;
-                    ths.updateTabTitle(ths.getTabTitle(pan), pan, ths.tabPane.getSelectedIndex());
+                    MainFrame.this.updateTabTitle(MainFrame.this.getTabTitle(pan), pan, MainFrame.this.tabPane.getSelectedIndex());
 
                 }
             });
@@ -1516,17 +1909,17 @@ public final class Frame2 extends javax.swing.JFrame {
                     public void run_() {
                         //JTree node = ((FileTree) e.getSource()).root;
                         Object[] path = e.getNewLeadSelectionPath().getPath();
-                        String str = "";
+                        String str = "CACHE\\";
                         int i = 0;
-                        for (Object s : path) {
+                        for (Object s : path) {//for each part of 'tree' path
                             str += s;
-                            if (i < path.length - 1) {
+                            if (i < path.length - 1) {//if this is not the last iteration
                                 str += "\\";
                             }
                             i++;
                         }
                         System.out.println("PLAY: " + str);
-                        playMP3(new File(str));
+                        AudioPlayer.getInstance().enqueue( new File(str));
                     }
                 };
                 new Thread(runnable).start();
@@ -1535,10 +1928,13 @@ public final class Frame2 extends javax.swing.JFrame {
 
         try {
             FileTree tree;
-            if (!new File("CACHE\\").exists()) {
+            if (!new File(AUDIO_PATH).exists()) {
                 tree = new FileTree(new File("."), listener);
+            } else if (!new File(CACHE_PATH).exists()) {
+                tree = new FileTree(new File(CACHE_PATH), listener);
+
             } else {
-                tree = new FileTree(new File("CACHE\\"), listener);
+                tree = new FileTree(new File(CACHE_PATH), listener);
             }
 //            leftScrollPane.getViewport().removeAll();
             leftScrollPane.getViewport().add(tree);
@@ -1671,6 +2067,10 @@ public final class Frame2 extends javax.swing.JFrame {
 //            }
         }
 
+    }
+
+    public File selectedFile() {
+        return new File(recentFilesComboBox.getSelectedItem().toString());
     }
     private static final MouseListener buttonMouseListener = new BorderChangeMouseAdapter();
 }

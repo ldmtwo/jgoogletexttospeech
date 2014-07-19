@@ -10,6 +10,7 @@ import java.awt.event.MouseWheelEvent;
 import java.io.File;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
+import static org.ldtwo.GoTTS.Languages.LA_LANGUAGE;
 
 /**
  *
@@ -34,14 +35,14 @@ public class EditorPanel extends javax.swing.JPanel implements DocumentListener 
             
             @Override
             public void mouseWheelMoved(MouseWheelEvent e) {
-                Frame2.ths.tabPaneMouseScroll(e);
+                MainFrame.ths.tabPaneMouseScroll(e);
             }
             
         });
     }
 
     public String getLanguage() {
-        return G.LA_LANGUAGE.get(la_);
+        return LA_LANGUAGE.get(la_);
     }
 
     /**

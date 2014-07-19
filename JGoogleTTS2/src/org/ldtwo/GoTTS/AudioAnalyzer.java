@@ -33,7 +33,7 @@ import static java.lang.Math.*;
 import java.util.HashMap;
 import javax.imageio.ImageIO;
 import sun.awt.image.WritableRasterNative;
-import static org.ldtwo.GoTTS.Worker.*;
+import static org.ldtwo.GoTTS.AudioPlayer.*;
 
 /**
  *
@@ -370,7 +370,7 @@ public class AudioAnalyzer {
                 try {
                     Thread.sleep(9000);
                 } catch (InterruptedException ex) {
-                    Logger.getLogger(Worker.class.getName()).log(Level.SEVERE, null, ex);
+                    Logger.getLogger(AudioPlayer.class.getName()).log(Level.SEVERE, null, ex);
                 }
 //                f.dispose();
             }
@@ -948,7 +948,7 @@ os.close();
                 try {
                     Thread.sleep(9000);
                 } catch (InterruptedException ex) {
-                    Logger.getLogger(Worker.class.getName()).log(Level.SEVERE, null, ex);
+                    Logger.getLogger(AudioPlayer.class.getName()).log(Level.SEVERE, null, ex);
                 }
 //                f.dispose();
             }

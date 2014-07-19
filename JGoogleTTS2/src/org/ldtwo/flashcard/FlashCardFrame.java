@@ -5,17 +5,10 @@
  */
 package org.ldtwo.flashcard;
 
-import java.awt.Canvas;
 import java.awt.Color;
 import java.awt.Container;
-import java.awt.Desktop;
-import java.awt.DisplayMode;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
-import java.awt.GraphicsConfiguration;
-import java.awt.GraphicsDevice;
-import java.awt.GraphicsEnvironment;
-import java.awt.Rectangle;
 import java.awt.Toolkit;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
@@ -23,7 +16,6 @@ import java.awt.geom.Rectangle2D;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.Charset;
@@ -37,13 +29,14 @@ import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.SwingUtilities;
 import javax.swing.plaf.LabelUI;
-import org.ldtwo.GoTTS.Frame2;
+import org.ldtwo.GoTTS.AudioPlayer;
+import org.ldtwo.GoTTS.MainFrame;
 
 /**
  *
  * @author ldtwo
  */
-public class CardFrame extends javax.swing.JFrame {
+public class FlashCardFrame extends javax.swing.JFrame {
 
     DecimalFormat df = new DecimalFormat("0.#");
     public static String path = "C:\\Users\\Larry\\Desktop";
@@ -51,16 +44,21 @@ public class CardFrame extends javax.swing.JFrame {
     public Term currentTerm = null;
     public long startTime = System.currentTimeMillis();
     final long SLEEP_DURATION = 15000;
-    Frame2 player;
+    MainFrame player;
     final LinkedList<Term> deck;
 
+    final String leftLanguage;
+    final String rightLanguage;
+    
     /**
      * Creates new form CardFrame
      *
      * @throws java.lang.Exception
      */
-    public CardFrame(Frame2 f2) throws Exception {
+    public FlashCardFrame(MainFrame f2, File inputFile,String leftLanguage,String rightLanguage) throws Exception {
 
+this.leftLanguage=leftLanguage;
+this.rightLanguage=rightLanguage;
 //        this.setVisible(false);
 //        this.setUndecorated(true);
 //        this.setVisible(true);
@@ -169,7 +167,7 @@ public class CardFrame extends javax.swing.JFrame {
 //        jLabel1.setLocale(Locale.US);
 
         {
-            deck = getDeck(null);
+            deck = getDeck(inputFile);
 
             deck.addLast(new Term() {
 
@@ -238,7 +236,7 @@ public class CardFrame extends javax.swing.JFrame {
                         scoreZero.setBackground(baseColor);
                         Thread.sleep((long) (SLEEP_DURATION * 9 / 10));
                     } catch (Exception ex) {
-                        Logger.getLogger(CardFrame.class.getName()).log(Level.SEVERE, null, ex);
+                        Logger.getLogger(FlashCardFrame.class.getName()).log(Level.SEVERE, null, ex);
                     }
                 }
             }
@@ -290,12 +288,12 @@ public class CardFrame extends javax.swing.JFrame {
                     deck.addLast(t);
                 }
             } catch (Exception ex) {
-                Logger.getLogger(CardFrame.class.getName()).log(Level.SEVERE, null, ex);
+                Logger.getLogger(FlashCardFrame.class.getName()).log(Level.SEVERE, null, ex);
             } finally {
                 try {
                     br.close();
                 } catch (IOException ex) {
-                    Logger.getLogger(CardFrame.class.getName()).log(Level.SEVERE, null, ex);
+                    Logger.getLogger(FlashCardFrame.class.getName()).log(Level.SEVERE, null, ex);
                 }
             }
         }
@@ -564,9 +562,9 @@ public class CardFrame extends javax.swing.JFrame {
 
             @Override
             public void run() {
-                File f = player.getMP3(topLbl.getText());
+                File f = AudioPlayer.getMP3(topLbl.getText(),useFront? leftLanguage:rightLanguage);
                 if (f != null && f.exists()) {
-                    player.playMP3(f);
+                    AudioPlayer.getInstance().enqueue(f);
                 }
             }
         });
@@ -723,7 +721,7 @@ public class CardFrame extends javax.swing.JFrame {
 //                try {
 //                    Thread.sleep(100);
 //                } catch (InterruptedException ex) {
-//                    Logger.getLogger(CardFrame.class.getName()).log(Level.SEVERE, null, ex);
+//                    Logger.getLogger(FlashCardFrame.class.getName()).log(Level.SEVERE, null, ex);
 //                }
 //                if(resizeRunnable!=this)return;
                 bottomLbl.setLocation(topLbl.getWidth() / 2 - bottomLbl.getWidth() / 2, bottomLbl.getY());
@@ -749,15 +747,13 @@ public class CardFrame extends javax.swing.JFrame {
     private void topLblMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_topLblMouseClicked
 
         SwingUtilities.invokeLater(new Runnable() {
-
             @Override
             public void run() {
-                File f = player.getMP3(topLbl.getText());
-                player.playMP3(f);
+                File f = AudioPlayer.getMP3(topLbl.getText(),useFront? leftLanguage:rightLanguage);
+                AudioPlayer.getInstance().enqueue(f);
             }
         });
-
-
+        
     }//GEN-LAST:event_topLblMouseClicked
 
     private void trimActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_trimActionPerformed
@@ -807,13 +803,13 @@ public class CardFrame extends javax.swing.JFrame {
 //                }
 //            }
 //        } catch (ClassNotFoundException ex) {
-//            java.util.logging.Logger.getLogger(CardFrame.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+//            java.util.logging.Logger.getLogger(FlashCardFrame.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
 //        } catch (InstantiationException ex) {
-//            java.util.logging.Logger.getLogger(CardFrame.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+//            java.util.logging.Logger.getLogger(FlashCardFrame.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
 //        } catch (IllegalAccessException ex) {
-//            java.util.logging.Logger.getLogger(CardFrame.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+//            java.util.logging.Logger.getLogger(FlashCardFrame.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
 //        } catch (javax.swing.UnsupportedLookAndFeelException ex) {
-//            java.util.logging.Logger.getLogger(CardFrame.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+//            java.util.logging.Logger.getLogger(FlashCardFrame.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
 //        }
 //        //</editor-fold>
 //
@@ -821,9 +817,9 @@ public class CardFrame extends javax.swing.JFrame {
 //        java.awt.EventQueue.invokeLater(new Runnable() {
 //            public void run() {
 //                try {
-//                    new CardFrame().setVisible(true);
+//                    new FlashCardFrame().setVisible(true);
 //                } catch (Exception ex) {
-//                    Logger.getLogger(CardFrame.class.getName()).log(Level.SEVERE, null, ex);
+//                    Logger.getLogger(FlashCardFrame.class.getName()).log(Level.SEVERE, null, ex);
 //                }
 //            }
 //        });

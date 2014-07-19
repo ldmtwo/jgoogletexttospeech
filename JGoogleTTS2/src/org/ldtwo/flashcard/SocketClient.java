@@ -21,7 +21,7 @@ import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import org.ldtwo.GoTTS.G;
-import static org.ldtwo.flashcard.TestImage.IMAGE_PATH;
+import static org.ldtwo.GoTTS.G.*;
 
 class SocketClient implements java.lang.Runnable {
 

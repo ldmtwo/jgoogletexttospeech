@@ -25,7 +25,8 @@ public class Term implements Comparable<Term>, Comparator<Term> {
     final double alpha = 0.4;//% time
     final double beta = 0.7;//% accuracy
     public final String left, right;
-    public HashSet leftSet=new HashSet(), rightSet=new HashSet();
+    private HashSet<ImageFile> leftSet = new HashSet();
+    private HashSet<ImageFile> rightSet = new HashSet();
     public int views = 0;
     private double avgTime = 1, recentTime = 0, avgAccuracy = 0;
     public boolean visible = true;
@@ -101,7 +102,7 @@ public class Term implements Comparable<Term>, Comparator<Term> {
     public String info() {
         return String.format("%38s == %-37s  ::::  %s images <---> %s images ",
                 "\"" + G.makeValidFileName(left) + "\"", "\"" + G.makeValidFileName(right) + 
-                        "\"", leftSet.size(), rightSet.size());
+                        "\"", getLeftSet().size(), getRightSet().size());
     }
     @Override
     public String toString() {
@@ -118,14 +119,14 @@ public class Term implements Comparable<Term>, Comparator<Term> {
             }
             for (Term t : list) {
                 String files = "";
-                for (Object o : t.leftSet) {
-                    File f = (File) o;
+                for (ImageFile o : t.getLeftSet()) {
+                    File f = o.file;
                     files += String.format("\t\t<IMG width=\"100\" height=\"150\" src=\"file:///%s\"/>\n", URLEncoder.encode(f.getAbsolutePath(), "UTF-8"));
                 }
                 String left = String.format("<LI>%s \n%s</LI>", t.left, files);
                 files = "";
-                for (Object o : t.rightSet) {
-                    File f = (File) o;
+                for (ImageFile o : t.getRightSet()) {
+                    File f =  o.file;
                     files += String.format("\t\t<IMG width=\"100\" height=\"150\" src=\"file:///%s\"/>\n", URLEncoder.encode(f.getAbsolutePath(), "UTF-8"));
                 }
                 String right = String.format("<LI>%s \n%s</LI>", t.right, files);
@@ -135,5 +136,33 @@ public class Term implements Comparable<Term>, Comparator<Term> {
         } catch (Exception ex) {ex.printStackTrace();
         }
         return out;
+    }
+
+    /**
+     * @return the leftSet
+     */
+    public HashSet<ImageFile> getLeftSet() {
+        return leftSet;
+    }
+
+    /**
+     * @param leftSet the leftSet to set
+     */
+    public void setLeftSet(HashSet<ImageFile> leftSet) {
+        this.leftSet = leftSet;
+    }
+
+    /**
+     * @return the rightSet
+     */
+    public HashSet<ImageFile> getRightSet() {
+        return rightSet;
+    }
+
+    /**
+     * @param rightSet the rightSet to set
+     */
+    public void setRightSet(HashSet<ImageFile> rightSet) {
+        this.rightSet = rightSet;
     }
 }

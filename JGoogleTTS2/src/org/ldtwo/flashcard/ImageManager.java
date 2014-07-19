@@ -1,8 +1,13 @@
 package org.ldtwo.flashcard;
 
+import java.awt.Color;
+import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.Image;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
+import java.awt.image.ImageObserver;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -29,6 +34,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.PriorityBlockingQueue;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -37,15 +43,23 @@ import javax.imageio.IIOException;
 import javax.imageio.ImageIO;
 import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.SSLProtocolException;
+import javax.swing.AbstractButton;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
+import javax.swing.JComponent;
 import javax.swing.JPanel;
+import javax.swing.JToggleButton;
+import javax.swing.SwingConstants;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.ldtwo.GoTTS.G;
+import static org.ldtwo.GoTTS.G.*;
+import org.ldtwo.GoTTS.MainFrame;
+import static org.ldtwo.GoTTS.MainFrame.activeDownloads;
+import static org.ldtwo.GoTTS.MainFrame.recentCache;
 
-public class TestImage {
+public class ImageManager {
 
     final static int MIN_SET_SIZE = 5;
     final static long MAX_FILE_SIZE = 200 * 1024;//bytes
@@ -63,38 +77,55 @@ public class TestImage {
     final static int MAX_IMAGES_PER_QUERY = 4;
     final static int MAX_PAGES = 2;
     static int gsTotal = 0, termTotal = 0, imgTotal = 0, prefetchTotal = 0;
-    final static String IMAGE_PATH = "CACHE\\IMAGES\\";
-    final static String RESPONSE_PATH = "CACHE\\RESPONSES\\";
-    final static PriorityBlockingQueue queue = new PriorityBlockingQueue();
-    static Thread scheduler = new Thread() {
+    final static PriorityBlockingQueue<Callable> queue = new PriorityBlockingQueue();
+
+    static class SchedulerThread extends Thread implements Comparable<Callable> {
+
+        public SchedulerThread(String threadName) {
+            super(threadName);
+        }
+
+        @Override
+        public int compareTo(Callable o) {
+            return this.getPriority() > o.hashCode() ? 1 : this.getPriority() == o.hashCode() ? 0 : -1;
+
+        }
+
+    }
+
+    SchedulerThread scheduler = new SchedulerThread("SchedulerThread") {
 
         @Override
         public void run() {
-            try {
-                Object t;
-                while ((t = queue.take()) != null) {
-                    // submit(t);  
+            while (true) {
+                try {
+                    Callable t;
+
+                    while ((t = queue.take()) != null) {
+                        prefetchExecutor.submit(t);
+                    }
+                } catch (InterruptedException ex) {
+                    //Thread.currentThread().interrupt();
+                    ex.printStackTrace();
                 }
-            } catch (InterruptedException ex) {
-                Thread.currentThread().interrupt();
             }
         }
 
     };
-    final static ExecutorService termExecutor = Executors.newFixedThreadPool(8);
-    final static LinkedList<Future> termJobs = new LinkedList<>();
+    final ExecutorService termExecutor = Executors.newFixedThreadPool(8);
+    final LinkedList<Future> termJobs = new LinkedList<>();
 
-    final static ExecutorService prefetchExecutor = Executors.newFixedThreadPool(8);
-    final static LinkedList<Future> prefetchJobs = new LinkedList<>();
+    final ExecutorService prefetchExecutor = Executors.newFixedThreadPool(8);
+    final LinkedList<Future> prefetchJobs = new LinkedList<>();
 
-    final static ExecutorService imageDownloadExecutor = Executors.newFixedThreadPool(CONCURRENT_DOWNLOADS);
-    final static LinkedList<Future> imageDownloadJobs = new LinkedList<>();
+    final ExecutorService imageDownloadExecutor = Executors.newFixedThreadPool(CONCURRENT_DOWNLOADS);
+    final LinkedList<Future> imageDownloadJobs = new LinkedList<>();
 
-    final static ExecutorService gSearchExecutor = Executors.newFixedThreadPool(2);
-    final static LinkedList<Future> gSearchJobs = new LinkedList<>();
+    final ExecutorService gSearchExecutor = Executors.newFixedThreadPool(2);
+    final LinkedList<Future> gSearchJobs = new LinkedList<>();
 
-    final static ExecutorService[] executors = {gSearchExecutor, imageDownloadExecutor, termExecutor, prefetchExecutor};
-    final static LinkedList[] jobListOfLists = {gSearchJobs, imageDownloadJobs, termJobs, prefetchJobs};
+    final public ExecutorService[] executors = {gSearchExecutor, imageDownloadExecutor, termExecutor, prefetchExecutor};
+    final LinkedList[] jobListOfLists = {gSearchJobs, imageDownloadJobs, termJobs, prefetchJobs};
 
     public static File newResponseFile(final String encodedQuery, String extraInfo) {
         return new File(RESPONSE_PATH + G.makeValidFileName(encodedQuery) + "__" + extraInfo + ".xml");
@@ -104,7 +135,12 @@ public class TestImage {
         return new File(IMAGE_PATH + G.makeValidFileName(query) + "__" + index + ".jpg");
     }
 
-    public static void gSearchPause() throws InterruptedException {
+    public static File query2AudioFile(String query, String lang) {
+        new File(AUDIO_PATH + "\\" + lang).mkdirs();
+        return new File(AUDIO_PATH + lang + "\\" + G.makeValidFileName(query) + ".mp3");
+    }
+
+    public void gSearchPause() throws InterruptedException {
         if (imageDownloadJobs.size() > 10 || imageDownloadJobs.size() % 3 == 0) {
             Thread.sleep(1500);
         }
@@ -113,9 +149,9 @@ public class TestImage {
 
     public static void setHttpConnectionProperties(HttpURLConnection connection) {
         connection.setConnectTimeout(700);
+        connection.setReadTimeout(800);
         connection.setDefaultUseCaches(true);
         connection.setDoOutput(true);
-        connection.setReadTimeout(500);
         connection.setUseCaches(true);
         connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/34.0.1779.2 Safari/537.36");
     }
@@ -142,9 +178,9 @@ public class TestImage {
                 }
             }
             System.out.println(new String(chars, 0, i));
-            //new TestImage();
+            //new ImageManager();
         } catch (Exception ex) {
-            Logger.getLogger(TestImage.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(ImageManager.class.getName()).log(Level.SEVERE, null, ex);
         }
 
     }
@@ -163,18 +199,18 @@ public class TestImage {
         return arr;
     }
 
-    public TestImage() throws Exception {
-        LinkedList<Term> deck = CardFrame.getDeck(
-                new File("C:\\Users\\Larry\\Desktop\\French class\\vocab\\chpt 4.tab.txt")
-        );
-        loadDeckWithImages(deck);
-
-        for (Term t : deck) {
-            //System.out.printf("%s\n",t.info());
-        }
+    public ImageManager() throws Exception {
+//        LinkedList<Term> deck = CardFrame.getDeck(
+//                new File("C:\\Users\\Larry\\Desktop\\French class\\vocab\\chpt 4.tab.txt")
+//        );
+//        loadDeckWithImages(deck);
+//
+//        for (Term t : deck) {
+//            //System.out.printf("%s\n",t.info());
+//        }
 
     }
-    static Thread tracker = new Thread() {
+    Thread tracker = new Thread() {
 
         @Override
         public void run() {
@@ -206,30 +242,47 @@ public class TestImage {
         }
     };
 
-    public static void loadDeckWithImages(final LinkedList<Term> deck) throws InterruptedException, ExecutionException {
-        Collections.shuffle(deck);
+    public void shutdown() {
+        try {
+            System.out.println("--------------------------------\nShutting down!");
+            for (ExecutorService exec : executors) {
+                exec.shutdownNow();
+                exec.awaitTermination(1, TimeUnit.SECONDS);
+            }
+            tracker.stop();
+            scheduler.stop();
+        } catch (InterruptedException ex) {
+        }
+    }
+
+    public void loadDeckWithImages(final LinkedList<Term> deck) throws InterruptedException, ExecutionException {
+        //Collections.shuffle(deck);
         scheduler.start();
         new File(IMAGE_PATH).mkdirs();
         for (final Term t : deck) {
             Callable c = new Callable() {
                 public Object call() {
                     try {
-                        t.rightSet = locateImageFiles(t.right, null);
-                        t.leftSet = locateImageFiles(t.left, null);
-                        Callable r = new Callable() {
-                            public Object call() {
-                                try {
-                                    t.rightSet = getImages(t.right, null, t.rightSet);
-                                    t.leftSet = getImages(t.left, null, t.leftSet);
-                                    //t.leftSet = locateImageFiles(t.left, null);
-                                } catch (Throwable thr) {
+                        t.setRightSet(locateImageFiles(t.right, null));
+                        t.setLeftSet(locateImageFiles(t.left, null));
+                        try {
+                            Callable r = new Callable() {
+                                public Object call() {
+                                    try {
+                                        t.setRightSet(getImages(t.right, null, t.getRightSet()));
+                                        t.setLeftSet(getImages(t.left, null, t.getLeftSet()));
+                                        //t.leftSet = locateImageFiles(t.left, null);
+                                    } catch (Throwable thr) {
+                                        thr.printStackTrace();
+                                    }
+                                    return t;
                                 }
-                                return t;
-                            }
-                        };
-                        if (true) {
-                            termTotal++;
-                            termJobs.addLast(termExecutor.submit(r));
+                            };
+                            if (true) {
+                                termTotal++;
+                                termJobs.addLast(termExecutor.submit(r));
+                            }else throw new InterruptedException();
+                        } catch (InterruptedException e) {
                         }
                         //t.leftSet = locateImageFiles(t.left, null);
                     } catch (Throwable thr) {
@@ -237,6 +290,7 @@ public class TestImage {
                     return t;
                 }
             };
+//            queue.offer(c);
             prefetchTotal++;
             prefetchJobs.add(prefetchExecutor.submit(c));
         }
@@ -244,15 +298,14 @@ public class TestImage {
         tracker.start();
 
         //BLOCK ON PREFETCHER  
-        while (!prefetchJobs.isEmpty() //&& prefetchJobs.peekFirst().isDone()
-                ) {
-            Future f = prefetchJobs.removeFirst();
-            f.get();
-            
-        }
-        
+//        while (!prefetchJobs.isEmpty() //&& prefetchJobs.peekFirst().isDone()
+//                ) {
+//            Future f = prefetchJobs.removeFirst();
+//            f.get();
+//
+//        }
         try {
-        File f=new File("C:\\Users\\Larry\\Desktop\\French class\\vocab\\chpt 3.html");
+            File f = new File("C:\\Users\\Larry\\Desktop\\French class\\vocab\\chpt 3.html");
             String str = Term.toHTML(deck);
             FileOutputStream os = new FileOutputStream(f);
             os.write(str.getBytes());
@@ -274,7 +327,7 @@ public class TestImage {
                                 o = f.get();
                                 if (o != null && o instanceof Term) {
                                     Term t = (Term) o;
-                                    System.out.printf("Term:    %s\n", t.info());
+                                    //System.out.printf("Term:    %s\n", t.info());
                                 }
                             }
                         }
@@ -296,21 +349,26 @@ public class TestImage {
                 } catch (Exception ex) {
                     ex.printStackTrace();
                 }
-        try {
-        File f=new File("C:\\Users\\Larry\\Desktop\\French class\\vocab\\chpt 3.html");
-            String str = Term.toHTML(deck);
-            FileOutputStream os = new FileOutputStream(f);
-            os.write(str.getBytes());
-            os.close();
-        } catch (Exception ex) {
-        }
+                try {
+                    File f = new File("C:\\Users\\Larry\\Desktop\\French class\\vocab\\chpt 3.html");
+                    String str = Term.toHTML(deck);
+                    FileOutputStream os = new FileOutputStream(f);
+                    os.write(str.getBytes());
+                    os.close();
+                } catch (Exception ex) {
+                }
             }
         };
         new Thread(runnable).start();
+
+        while (prefetchJobs.size() >= prefetchTotal) {
+            Thread.sleep(200);
+        }
+        Thread.sleep(3000);
     }
 
-    public static HashSet locateImageFiles(final String query, JPanel pan) {
-        HashSet set = new HashSet();
+    public static HashSet<ImageFile> locateImageFiles(final String query, JPanel pan) {
+        HashSet<ImageFile> set = new HashSet();
         int count = 0;
         //test cached results for validity
         for (int i = 0; i < MAX_IMAGES_PER_QUERY * MAX_PAGES; i++) {
@@ -319,7 +377,7 @@ public class TestImage {
             if (file.exists() && file.length() <= MAX_FILE_SIZE) {
                 try {
                     testImageFileValidity(file);
-                    set.add(file);
+                    set.add(new ImageFile(file));
                     count++;
                 } catch (Exception ex) {
                     System.out.printf("!!!  INVALID FILE: %s\n", file);
@@ -337,7 +395,7 @@ public class TestImage {
      * @param set
      * @return Collection of JComponents
      */
-    public static HashSet getImages(final String query, final JPanel pan, final HashSet set) {
+    public HashSet<ImageFile> getImages(final String query, final JPanel pan, final HashSet<ImageFile> set) {
 
         try {
 
@@ -423,13 +481,16 @@ public class TestImage {
 //                os.close();
 //            } catch (IOException ex2) {
 //            }
+            
+                                    }catch(RejectedExecutionException ex){
+                                    }catch(InterruptedException ex){
         } catch (Exception e) {
             e.printStackTrace();
         }
         return new HashSet();
     }
 
-    public static void interpretResponseAndDownload(File outputFile, final String encodedQuery, final String query, HashSet set, JPanel pan, final int indexOffset) throws FileNotFoundException, JSONException {
+    public void interpretResponseAndDownload(File outputFile, final String encodedQuery, final String query, HashSet<ImageFile> set, JPanel pan, final int indexOffset) throws FileNotFoundException, JSONException {
         String content = new Scanner(outputFile).useDelimiter("\\Z").next();
         JSONObject json = new JSONObject(content);
         JSONArray results = null;
@@ -438,7 +499,7 @@ public class TestImage {
         downLoadJSONResults(results, encodedQuery, query, set, pan, indexOffset);
     }
 
-    synchronized public static File queryToResponseFile(final String encodedQuery, final String query, final File outputFile, String extraQueryInfo) throws FileNotFoundException, IOException, MalformedURLException, InterruptedException {
+    synchronized public File queryToResponseFile(final String encodedQuery, final String query, final File outputFile, String extraQueryInfo) throws FileNotFoundException, IOException, MalformedURLException, InterruptedException {
 
         if (outputFile.exists() && outputFile.length() > 1024) {
             return outputFile;
@@ -473,16 +534,65 @@ public class TestImage {
         return null != ImageIO.read(file);
     }
 
-    public static JButton imageFile2jButton(int width, int height, final File file) throws IOException {
+    public static JToggleButton imageFile2jButton_check(int width, int height, final File file) throws IOException {
         BufferedImage image = ImageIO.read(file);
         Image img = image.getScaledInstance(width, height, Image.SCALE_FAST);
-        JButton btn = new JButton(new ImageIcon(img));
+        BufferedImage bad = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+       
+        Graphics2D g = bad.createGraphics();
+        g.setColor(Color.red);
+        g.drawImage(img, 0, 0, null);
+        //\u2713
+        g.setFont(Font.decode("Arial-BOLD-200"));
+        g.drawString("\u2713", width/2-75, height/2+75);
+        JToggleButton btn;// = new JButton(new ImageIcon(img));
+        ImageIcon front = new ImageIcon(img);
+        btn = new JToggleButton(front);
+        //btn.setRolloverEnabled(true);
+        ImageIcon back=new ImageIcon(bad);
+        btn.setPressedIcon(front);
+        btn.setSelectedIcon(back);
+        //btn.setRolloverIcon(back);
+        //btn.setRolloverSelectedIcon(front);
         img.flush();
+        g.dispose();
         return btn;
     }
 
-    public static void downLoadJSONResults(final JSONArray results, final String encodedQuery, final String query,
-            final HashSet set, final JPanel pan, final int indexOffset) {
+ 
+    public static JToggleButton imageFile2jButton_x(int width, int height, final File file) throws IOException {
+        BufferedImage image = ImageIO.read(file);
+        Image img = image.getScaledInstance(width, height, Image.SCALE_FAST);
+        BufferedImage bad = new BufferedImage(width, height, BufferedImage.TYPE_BYTE_GRAY);
+        ImageObserver imgObs=new ImageObserver() {
+
+            @Override
+            public boolean imageUpdate(Image img, int infoflags, int x, int y, int width, int height) {
+                return false;
+            }
+        };
+        Graphics2D g = bad.createGraphics();
+        g.setColor(Color.red);
+        g.drawImage(img, 0, 0, null);
+        //\u2713
+        g.setFont(Font.decode("Arial-BOLD-200"));
+        g.drawString("X", width/2-75, height/2+75);
+        JToggleButton btn;// = new JButton(new ImageIcon(img));
+        ImageIcon front = new ImageIcon(img);
+        btn = new JToggleButton(front);
+        //btn.setRolloverEnabled(true);
+        ImageIcon back=new ImageIcon(bad);
+        btn.setPressedIcon(front);
+        btn.setSelectedIcon(back);
+        //btn.setRolloverIcon(back);
+        //btn.setRolloverSelectedIcon(front);
+        img.flush();
+        g.dispose();
+        return btn;
+    }
+
+    public void downLoadJSONResults(final JSONArray results, final String encodedQuery, final String query,
+            final HashSet<ImageFile> set, final JPanel pan, final int indexOffset) {
         LinkedList<Future<String>> localJobs = new LinkedList<>();
         int len = results.length();
         for (int i = 0; i < len; i++) {
@@ -500,7 +610,8 @@ public class TestImage {
                     String imageUrl = obj.getString("url");
                     String unescapedUrl = obj.getString("unescapedUrl");
                     final File outputFile = query2ImageFile(query, indexOffset + i_);
-                    if (set.contains(outputFile)) {
+                    ImageFile imgf = new ImageFile(outputFile);
+                    if (set.contains(imgf)) {
                         return "";
                     }
                     String ss = "";
@@ -514,8 +625,11 @@ public class TestImage {
                         }
                         testImageFileValidity(outputFile);
 //                            JButton btn = new JButton();
-                        set.add(outputFile);
+                        set.add(imgf);
                         //ss = "";
+                    }catch(java.awt.color.CMMException ex2){
+                    } catch (IllegalArgumentException ex2) {
+                        //System.err.printf(">>>>> failed - bad image: %s\t%s \n", unescapedUrl, ex2);
                     } catch (Exception exception) {
                         ex = exception;
                         //System.err.printf("%s:   oXo %s ---->>> %s\n", ex, unescapedUrl, outputFile);
@@ -545,8 +659,8 @@ public class TestImage {
                                 }
                                 testImageFileValidity(outputFile);
                                 //JButton btn = new JButton();
-                                set.add(outputFile);
-                                System.out.printf(">>>>> success URL: %s\t\t%s\n", imageUrl, unescapedUrl);
+                                set.add(imgf);
+                                //System.out.printf(">>>>> success URL: %s\t\t%s\n", imageUrl, unescapedUrl);
 //                                    System.out.printf("success URL: %s\n", visibleUrl);
                                 return ss;
                                 //break;
@@ -564,7 +678,7 @@ public class TestImage {
 
                     if (ex != null) {
                         printURLException(ex, unescapedUrl);
-                        System.err.printf(">>>>> failed URL: %s\t\t%s\n", imageUrl, unescapedUrl);
+                        //System.err.printf(">>>>> failed URL: %s\t\t%s\n", imageUrl, unescapedUrl);
                         //throw ex;
                     }
                     return ss;
@@ -586,9 +700,9 @@ public class TestImage {
                 String ss = localJobs.removeFirst().get();
                 System.out.print(ss);
             } catch (InterruptedException ex) {
-                Logger.getLogger(TestImage.class.getName()).log(Level.SEVERE, null, ex);
+                Logger.getLogger(ImageManager.class.getName()).log(Level.SEVERE, null, ex);
             } catch (ExecutionException ex) {
-                Logger.getLogger(TestImage.class.getName()).log(Level.SEVERE, null, ex);
+                Logger.getLogger(ImageManager.class.getName()).log(Level.SEVERE, null, ex);
             }
         }
     }
@@ -649,7 +763,7 @@ public class TestImage {
         } else if (ex instanceof IIOException) {
             System.err.printf("%s: %s\n", ex.getMessage(), url);
         } else if (ex instanceof FileTooLargeException) {
-            System.err.printf("Config error - %s: %s\n", ex.getMessage(), url);
+            //System.out.printf("Config warning - %s: %s\n", ex.getMessage(), url);
         } else if (ex instanceof IOException && ex.toString().contains("403")) {
             System.err.printf("403 Permission denied: %s\n", url);
         } else if (ex instanceof IOException && ex.toString().contains("404")) {
@@ -686,13 +800,50 @@ public class TestImage {
         }
         return null;
     }
+    public static final Font font6 = Font.decode("Arial Unicode-8");
+    public static final Font font12 = Font.decode("Arial Unicode-12");
+
+    static final MouseAdapter dlButtonListener = new MouseAdapter() {
+
+        @Override
+        public void mouseEntered(MouseEvent e) {
+           ((JComponent) e.getSource()).setFont(font12);
+        }
+
+        @Override
+        public void mouseExited(MouseEvent e) {
+            ((JComponent) e.getSource()).setFont(font6);
+        }
+
+    };
 
     static public Exception download_httpConnection(String urlStr, File outputFile) {
         try {
+            JButton item = new JButton(outputFile.getAbsolutePath());
+            item.addMouseMotionListener(dlButtonListener);
+            item.setBackground(Color.gray);
+            item.setFont(font6);
+            item.setAlignmentY(-1);
+            item.setHorizontalAlignment(SwingConstants.LEFT);
+            item.setHorizontalTextPosition(SwingConstants.LEFT);
+            synchronized (activeDownloads) {
+                if (!recentCache.contains(outputFile)) {
+                    activeDownloads.addFirst(item);
+//                    MainFrame.downloads.setListData(activeDownloads.toArray());
+//                    G.refresh(MainFrame.downloads);
+//                    MainFrame.recentCache.add(item);
+                }
+            }
+            if (outputFile.exists()) {
+                return null;
+            }
+            item.setBackground(Color.red);
+            item.updateUI();
             URL url = new URL(urlStr);
             HttpURLConnection connection = (HttpURLConnection) url.openConnection();
             setHttpConnectionProperties(connection);
-            int responseCode = connection.getResponseCode();
+            int responseCode = 0;
+            responseCode=connection.getResponseCode();
 
             // always check HTTP response code first
             if (responseCode == HttpURLConnection.HTTP_OK) {
@@ -726,6 +877,8 @@ public class TestImage {
                 // opens an output stream to save into file
                 FileOutputStream outputStream = new FileOutputStream(outputFile);
 
+                item.setBackground(Color.orange);
+                item.updateUI();
                 int bytesRead;
                 int total = 0;
                 byte[] buffer = new byte[128 * 1024];
@@ -745,13 +898,20 @@ public class TestImage {
                 }
                 outputStream.close();
                 inputStream.close();
+
+                item.setBackground(Color.green);
+                item.updateUI();
                 //System.out.printf("downloaded(http): %s\n", urlStr);
 
             } else {
                 return new IOException("Server replied HTTP code: " + responseCode);
             }
             connection.disconnect();
+        }catch(SSLHandshakeException ex){return ex;
+        } catch (SocketTimeoutException ex) {
+            return ex;
         } catch (Exception ex) {
+            //ex.printStackTrace();
             return ex;
         }
         return null;
@@ -850,7 +1010,7 @@ public class TestImage {
 //                return imageUrl;
 //            }
 //            long h;
-//            Image img = image.getScaledInstance(15, 11, Image.SCALE_FAST);
+//            ImageFile img = image.getScaledInstance(15, 11, ImageFile.SCALE_FAST);
 //            BufferedImage img2 = toBufferedImage(img);
 //            int[] data = new int[10 * 10 * 4];
 //            data = img2.getRaster().getPixels(0, 0, 10, 10, data);
@@ -875,7 +1035,7 @@ public class TestImage {
 ////                }
 //            //if (minH > 5000)
 //            {
-//                JButton btn = new JButton(new ImageIcon(image.getScaledInstance(150, 110, Image.SCALE_FAST)));
+//                JButton btn = new JButton(new ImageIcon(image.getScaledInstance(150, 110, ImageFile.SCALE_FAST)));
 //                set.add(btn);
 //                if (pan != null) {
 //                    pan.add(btn);

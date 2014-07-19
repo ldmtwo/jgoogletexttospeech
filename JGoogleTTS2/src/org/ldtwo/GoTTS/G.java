@@ -5,21 +5,25 @@
  */
 package org.ldtwo.GoTTS;
 
+import java.awt.Component;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.PrintStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.security.SecureRandom;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Random;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import javax.swing.JComponent;
 import javax.swing.JFileChooser;
+import static org.ldtwo.GoTTS.Languages.*;
 
 /**
  *
@@ -27,146 +31,29 @@ import javax.swing.JFileChooser;
  */
 public class G {
 
+    public final static String RECENT_DECKS_FILE = ".recentDecks.txt";
+   public final static String IMAGE_PATH = "CACHE\\IMAGES\\";
+   public final static String RESPONSE_PATH = "CACHE\\RESPONSES\\";
+   public final static String AUDIO_PATH = "CACHE\\AUDIO\\";
+   public final static String CACHE_PATH = "CACHE\\";
+    
+    
     public static boolean CONFIRM_CLOSE = false;
     public static final int[] FONT_SIZES = {5, 8, 10, 11, 12, 14, 18, 24, 36, 48};
     public final static Random RAND = new SecureRandom();
-    public static HashSet<File> openFiles = new HashSet<File>();
-    public static LinkedList<EditorPanel> tabList = new LinkedList<EditorPanel>();
+    public static HashSet<File> openFiles = new HashSet<>();
+    public static LinkedList<EditorPanel> tabList = new LinkedList<>();
     public static long delay = 1;
     public static final String DELIM = "[\\n]", ANTIDELIM = "[^\\n]";
     public static final String DELIM2 = "[,.\\n]", ANTIDELIM2 = "[^,.\\n]";
     public static boolean play = false;
-    public static boolean pause = false;
+    public final static AtomicBoolean pause = new AtomicBoolean(false);
+    public final static AtomicInteger playersCount=new AtomicInteger(0);
     public static boolean skip = false;
     public static int skipDelta = 0;
     public final static boolean SIMULATION = false;
-    static final HashMap<String, String> LA_LANGUAGE = new HashMap<String, String>();
-    static final HashMap<String, String> LANGUAGE_LA = new HashMap<String, String>();
-    public final static String[] LANGS = {
-        "af	Afrikaans",
-        "sq	Albanian",
-        "am	Amharic",
-        "ar	Arabic",
-        "hy	Armenian",
-        "az	Azerbaijani",
-        "eu	Basque",
-        "be	Belarusian",
-        "bn	Bengali",
-        "bh	Bihari",
-        "bs	Bosnian",
-        "br	Breton",
-        "bg	Bulgarian",
-        "km	Cambodian",
-        "ca	Catalan",
-        "zh-CN	Chinese (Simplified)",
-        "zh-TW	Chinese (Traditional)",
-        "co	Corsican",
-        "hr	Croatian",
-        "cs	Czech",
-        "da	Danish",
-        "nl	Dutch",
-        "en	English (US)",
-        "en_gb	English (GB)",
-        "en_au	English (AU)",
-        "eo	Esperanto",
-        "et	Estonian",
-        "fo	Faroese",
-        "tl	Filipino",
-        "fi	Finnish",
-        "fr	French",
-        "fy	Frisian",
-        "gl	Galician",
-        "ka	Georgian",
-        "de	German",
-        "el	Greek",
-        "gn	Guarani",
-        "gu	Gujarati",
-        "xx-hacker	Hacker (Google hoax)",
-        "ha	Hausa",
-        "iw	Hebrew",
-        "hi	Hindi",
-        "hu	Hungarian",
-        "is	Icelandic",
-        "id	Indonesian",
-        "ia	Interlingua",
-        "ga	Irish",
-        "it	Italian",
-        "ja	Japanese",
-        "jw	Javanese",
-        "kn	Kannada",
-        "kk	Kazakh",
-        "rw	Kinyarwanda",
-        "rn	Kirundi",
-        "xx-klingon	Klingon (Google hoax)",
-        "ko	Korean",
-        "ku	Kurdish",
-        "ky	Kyrgyz",
-        "lo	Laothian",
-        "la	Latin",
-        "lv	Latvian",
-        "ln	Lingala",
-        "lt	Lithuanian",
-        "mk	Macedonian",
-        "mg	Malagasy",
-        "ms	Malay",
-        "ml	Malayalam",
-        "mt	Maltese",
-        "mi	Maori",
-        "mr	Marathi",
-        "mo	Moldavian",
-        "mn	Mongolian",
-        "sr-ME	Montenegrin",
-        "ne	Nepali",
-        "no	Norwegian",
-        "nn	Norwegian (Nynorsk)",
-        "oc	Occitan",
-        "or	Oriya",
-        "om	Oromo",
-        "ps	Pashto",
-        "fa	Persian",
-        "xx-pirate	Pirate (Google hoax)",
-        "pl	Polish",
-        "pt-BR	Portuguese (Brazil)",
-        "pt-PT	Portuguese (Portugal)",
-        "pa	Punjabi",
-        "qu	Quechua",
-        "ro	Romanian",
-        "rm	Romansh",
-        "ru	Russian",
-        "gd	Scots Gaelic",
-        "sr	Serbian",
-        "sh	Serbo-Croatian",
-        "st	Sesotho",
-        "sn	Shona",
-        "sd	Sindhi",
-        "si	Sinhalese",
-        "sk	Slovak",
-        "sl	Slovenian",
-        "so	Somali",
-        "es	Spanish",
-        "su	Sundanese",
-        "sw	Swahili",
-        "sv	Swedish",
-        "tg	Tajik",
-        "ta	Tamil",
-        "tt	Tatar",
-        "te	Telugu",
-        "th	Thai",
-        "ti	Tigrinya",
-        "to	Tonga",
-        "tr	Turkish",
-        "tk	Turkmen",
-        "tw	Twi",
-        "ug	Uighur",
-        "uk	Ukrainian",
-        "ur	Urdu",
-        "uz	Uzbek",
-        "vi	Vietnamese",
-        "cy	Welsh",
-        "xh	Xhosa",
-        "yi	Yiddish",
-        "yo	Yoruba",
-        "zu	Zulu"};
+    static boolean ENABLE_DRAIN_QUEUE=true;
+  
     //static int activeTabNum=0;
 
     static {
@@ -181,15 +68,15 @@ public class G {
 
     public static boolean saveFile(EditorPanel p, boolean askForFileName) {
         if (p.file == null || askForFileName) {
-            int selectedIndex = Frame2.ths.tabPane.getSelectedIndex();
-            Frame2.ths.tabPane.setSelectedComponent(p);//temporarily switch to current tab
+            int selectedIndex = MainFrame.ths.tabPane.getSelectedIndex();
+            MainFrame.ths.tabPane.setSelectedComponent(p);//temporarily switch to current tab
             JFileChooser fc = G.fileChooser;
             fc.showSaveDialog(null);
             p.file = fc.getSelectedFile();
             if (p.file == null) {
                 return false;
             }
-            Frame2.ths.tabPane.setSelectedIndex(selectedIndex);
+            MainFrame.ths.tabPane.setSelectedIndex(selectedIndex);
         }
         if (textToFile(p.file, p.txt.getText())) {//write file
             return false;
@@ -312,8 +199,16 @@ public class G {
     }
 
     public static String withoutOptions(String label) {
-        String ret=label.replaceAll("\\([^\\(\\)]*\\)", "");
+        String ret=label.replaceAll("\\([^\\(\\)]*\\)", "");//  ([^()]*)
         return ret;
     }
    final static  JFileChooser fileChooser=new JFileChooser(".");
+   
+   public static final void refresh(JComponent c){
+       
+        c.updateUI();
+        c.invalidate();
+        c.repaint();
+        c.validate();
+   }
 }
