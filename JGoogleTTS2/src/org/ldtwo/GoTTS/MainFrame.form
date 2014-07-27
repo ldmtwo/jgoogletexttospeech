@@ -326,7 +326,7 @@
       <SubComponents>
         <Container class="javax.swing.JSplitPane" name="jSplitPane1">
           <Properties>
-            <Property name="dividerLocation" type="int" value="250"/>
+            <Property name="dividerLocation" type="int" value="280"/>
             <Property name="dividerSize" type="int" value="7"/>
           </Properties>
 
@@ -369,7 +369,7 @@
                                           <Group type="102" alignment="0" attributes="0">
                                               <Component id="btnStage2All" min="-2" pref="184" max="-2" attributes="0"/>
                                               <EmptySpace max="-2" attributes="0"/>
-                                              <Component id="num2" pref="34" max="32767" attributes="0"/>
+                                              <Component id="num2" pref="64" max="32767" attributes="0"/>
                                           </Group>
                                           <Group type="102" alignment="0" attributes="0">
                                               <Component id="btnStage3Img" min="-2" pref="184" max="-2" attributes="0"/>
@@ -679,7 +679,7 @@
                   <Layout>
                     <DimensionLayout dim="0">
                       <Group type="103" groupAlignment="0" attributes="0">
-                          <Component id="jScrollPane1" alignment="0" pref="244" max="32767" attributes="0"/>
+                          <Component id="jScrollPane1" alignment="0" pref="274" max="32767" attributes="0"/>
                       </Group>
                     </DimensionLayout>
                     <DimensionLayout dim="1">

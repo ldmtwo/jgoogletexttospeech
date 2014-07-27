@@ -86,7 +86,7 @@ AudioPlayer player=AudioPlayer.getInstance();
     public static LinkedList<String> recentDeckFilesLinkedList = new LinkedList();
     public static HashMap<String, String[]> recentDeckFilesMap = new HashMap<>();
     public static final LinkedHashSet recentCache = new LinkedHashSet();
-    public static final LinkedList activeDownloads = new LinkedList();
+    public static final LinkedList<JButton> activeDownloads = new LinkedList();
     static public MainFrame ths;
     Thread downloadUIRefresher = new Thread("downloadUIRefresher-" + Math.random()) {
 
@@ -97,7 +97,7 @@ AudioPlayer player=AudioPlayer.getInstance();
                     Thread.sleep(200);
                     synchronized (activeDownloads) {
                         int j = 0;
-                        Object[] arr = activeDownloads.toArray();
+                        JButton[] arr = activeDownloads.toArray(new JButton[]{});
 
                         downloads.setListData(arr);
                         //G.refresh(downloads);
@@ -506,7 +506,7 @@ AudioPlayer player=AudioPlayer.getInstance();
 
         jPanel1.setLayout(new java.awt.GridLayout(1, 0));
 
-        jSplitPane1.setDividerLocation(250);
+        jSplitPane1.setDividerLocation(280);
         jSplitPane1.setDividerSize(7);
 
         Dimension dim=new Dimension(100, 100);
@@ -653,7 +653,7 @@ AudioPlayer player=AudioPlayer.getInstance();
                             .addGroup(jPanel3Layout.createSequentialGroup()
                                 .addComponent(btnStage2All, javax.swing.GroupLayout.PREFERRED_SIZE, 184, javax.swing.GroupLayout.PREFERRED_SIZE)
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(num2, javax.swing.GroupLayout.DEFAULT_SIZE, 34, Short.MAX_VALUE))
+                                .addComponent(num2, javax.swing.GroupLayout.DEFAULT_SIZE, 64, Short.MAX_VALUE))
                             .addGroup(jPanel3Layout.createSequentialGroup()
                                 .addComponent(btnStage3Img, javax.swing.GroupLayout.PREFERRED_SIZE, 184, javax.swing.GroupLayout.PREFERRED_SIZE)
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
@@ -750,7 +750,7 @@ AudioPlayer player=AudioPlayer.getInstance();
         jPanel4.setLayout(jPanel4Layout);
         jPanel4Layout.setHorizontalGroup(
             jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 244, Short.MAX_VALUE)
+            .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 274, Short.MAX_VALUE)
         );
         jPanel4Layout.setVerticalGroup(
             jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -1455,7 +1455,7 @@ rules.put("num-options", "4");
             return true;
         }
         for (File f : selected) {
-            String fName = f.getName();
+            String fName = f.getAbsolutePath();
             String[] arr = new String[]{fName, leftLanguage.getText(), rightLanguage.getText()};
             if (recentDeckFilesMap.containsKey(fName)) {
                 arr = recentDeckFilesMap.get(fName);
@@ -1463,6 +1463,11 @@ rules.put("num-options", "4");
             }
             recentDeckFilesLinkedList.addFirst(fName);
             recentDeckFilesMap.put(fName, arr);
+        }
+        if(true){
+            for(String s:recentDeckFilesLinkedList){
+                System.out.printf("%s, ", s);
+            } System.out.println();
         }
         return false;
     }

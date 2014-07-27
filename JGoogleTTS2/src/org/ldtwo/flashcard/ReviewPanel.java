@@ -40,6 +40,7 @@ import org.ldtwo.GoTTS.MainFrame;
 import org.ldtwo.GoTTS.G;
 import org.ldtwo.GoTTS.Languages;
 import org.ldtwo.GoTTS.AudioPlayer;
+import static org.ldtwo.flashcard.ImageManager.imageQueue;
 
 /**
  * True and false quiz (aud vs img)
@@ -47,7 +48,7 @@ import org.ldtwo.GoTTS.AudioPlayer;
  * @author ldtwo
  */
 public class ReviewPanel extends javax.swing.JPanel {
-    
+
     DecimalFormat df = new DecimalFormat("0.#");
     public File[] files = null;
     public LinkedList<Term> deck = new LinkedList<>();
@@ -67,34 +68,34 @@ public class ReviewPanel extends javax.swing.JPanel {
     final String leftLanguage;
     final String rightLanguage;
     public ImageManager imageDownloader;
-    
+
     class Action extends MouseAdapter implements Runnable, KeyListener {
-        
+
         @Override
         public void run() {
         }
-        
+
         @Override
         public void keyTyped(KeyEvent e) {
         }
-        
+
         @Override
         public void keyPressed(KeyEvent e) {
         }
-        
+
         @Override
         public void keyReleased(KeyEvent e) {
         }
-        
+
     }
-    
+
     Action action = new Action() {
-        
+
         @Override
         public void mouseEntered(MouseEvent e) {
             //player.playMP3(null);
         }
-        
+
         @Override
         public void mouseClicked(MouseEvent e) {
             if (e.getSource() == buttons[0]) {//right     
@@ -114,19 +115,19 @@ public class ReviewPanel extends javax.swing.JPanel {
                 buttons[i].setBackground(Color.gray);
             }
         }
-        
+
         @Override
         public void keyPressed(KeyEvent e) {
-            
+
         }
     };
-    
+
     final public void resetUI() {
-        
+
         for (JButton b : buttons) {
             b.setBackground(Color.LIGHT_GRAY);
         }
-        
+
     }
 
     /**
@@ -144,18 +145,42 @@ public class ReviewPanel extends javax.swing.JPanel {
             String leftLanguage, String rightLanguage) throws Exception {
         this.leftLanguage = leftLanguage;
         this.rightLanguage = rightLanguage;
-        
+
         player = f2;
-        
+
         deck = FlashCardFrame.getDeck(inputFile);
         shuffleDeckArray();
         imageDownloader = new ImageManager();
         imageDownloader.loadDeckWithImages(deck);
-        
+int i=0;
         for (Term t : deck) {
             //System.out.printf("%s\n",t.info());
+           
+        //synchronized (imageQueue) 
+        {
+            for (ImageFile f : t.getLeftSet()) {
+
+                //f=imageQueue.take();
+                imageQueue.remove(f);
+                f.priority = i+1;
+                imageQueue.add(f);
+                
+            }
         }
-        
+        //synchronized (imageQueue) 
+        {
+            for (ImageFile f : t.getRightSet()) {
+
+                //f=imageQueue.take();
+                imageQueue.remove(f);
+                f.priority = i;
+                imageQueue.add(f);
+                
+            }
+        }
+                i+=2;
+        }
+
         buttons = new JButton[deck.size()];
         for (JButton b : buttons) {
             if (b != null) {
@@ -172,9 +197,9 @@ public class ReviewPanel extends javax.swing.JPanel {
             hostContainer.add(this);
         }
         initComponents();
-        
+
         btnFullscreen.setVisible(false);
-        
+
         if (frame != null) {
             frame.pack();
             //go full screen
@@ -184,19 +209,19 @@ public class ReviewPanel extends javax.swing.JPanel {
             frame.setVisible(true);
         }
         KeyAdapter keyAdapter = new KeyAdapter() {
-            
+
             @Override
             public void keyPressed(KeyEvent evt) {
-                
+
             }
-            
+
         };
         this.addKeyListener(keyAdapter);
-        
+
         updateScore();
         rightActionPerformed(null);
     }
-    
+
     private void shuffleDeckArray() {
         //get shuffled array from original deck
         shuffledDeck = new ArrayList(deck);
@@ -352,6 +377,8 @@ public class ReviewPanel extends javax.swing.JPanel {
         add(panBottom, gridBagConstraints);
 
         panQuestions.setBackground(new java.awt.Color(36, 37, 48));
+        panQuestions.setMaximumSize(new java.awt.Dimension(32767, 100));
+        panQuestions.setName(""); // NOI18N
         panQuestions.setLayout(new java.awt.GridLayout(1, 0));
 
         question.setFont(new java.awt.Font("Arial Unicode MS", 0, 36)); // NOI18N
@@ -426,7 +453,7 @@ public class ReviewPanel extends javax.swing.JPanel {
     }// </editor-fold>//GEN-END:initComponents
 
     private void btnExitActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnExitActionPerformed
-        
+
         if (frame == null) {
             return;
         }
@@ -463,7 +490,7 @@ public class ReviewPanel extends javax.swing.JPanel {
     }//GEN-LAST:event_btnExitActionPerformed
 
     private void btnFullscreenActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnFullscreenActionPerformed
-        
+
         if (frame == null) {
             return;
         }
@@ -489,16 +516,18 @@ public class ReviewPanel extends javax.swing.JPanel {
         GraphicsDevice[] graphDevArray = ge.getScreenDevices();
         graphDevArray[0].setFullScreenWindow(frame);
         frame.setVisible(true);
-        
+
 
     }//GEN-LAST:event_btnFullscreenActionPerformed
 
     private void rightActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_rightActionPerformed
-        
+        if (deck.size() <= 0) {
+            return;
+        }
         Term t = deck.removeFirst();
         deck.addLast(t);
         if (t == null) {
-            
+
             try {
                 File f = new File("C:\\Users\\Larry\\Desktop\\French class\\vocab\\chpt 3.html");
                 String str = Term.toHTML(deck);
@@ -512,6 +541,20 @@ public class ReviewPanel extends javax.swing.JPanel {
         panAnswers.removeAll();
         show(t);
 
+        t=deck.peek();
+        
+            for (ImageFile f : t.getRightSet()) {
+                if(!imageQueue.remove(f))continue;
+                f.priority = 1;
+                imageQueue.add(f);
+            }
+            for (ImageFile f : t.getLeftSet()) {
+                if(!imageQueue.remove(f))continue;
+                f.priority = 2;
+                imageQueue.add(f);
+            }
+        
+        
 //        question.setText(t.left);
 //        Collection set = t.leftSet;
 //        gbc.gridx = 0;
@@ -560,13 +603,12 @@ public class ReviewPanel extends javax.swing.JPanel {
     private javax.swing.JButton right;
     // End of variables declaration//GEN-END:variables
 
-      
     public void print(Term t) {
         System.out.print(t.toString());
     }
     GridBagConstraints gbc = new GridBagConstraints();
     Thread audiPlayFuture = null;
-    
+
     public void playAudio(Term t) {
         if (audiPlayFuture != null) {
             audiPlayFuture.stop();
@@ -575,7 +617,7 @@ public class ReviewPanel extends javax.swing.JPanel {
         final String reverse = !useFront ? t.left : t.right;
         question.setText(String.format("<html>%s<br>%s", label, reverse));
         Runnable run = new Runnable() {
-            
+
             @Override
             public void run() {
                 try {
@@ -588,7 +630,7 @@ public class ReviewPanel extends javax.swing.JPanel {
                     if (!query1.equals(query2)) {
                         Thread.sleep(500);
                         File f = AudioPlayer.getMP3(query2, leftLanguage);
-                    AudioPlayer.getInstance().enqueue(f);
+                        AudioPlayer.getInstance().enqueue(f);
                     }
                     //other side
                     query1 = G.withoutOptions(reverse);
@@ -600,9 +642,9 @@ public class ReviewPanel extends javax.swing.JPanel {
                     if (!query1.equals(query2)) {
                         Thread.sleep(500);
                         File f = AudioPlayer.getMP3(query2, rightLanguage);
-                    AudioPlayer.getInstance().enqueue(f);
+                        AudioPlayer.getInstance().enqueue(f);
                     }
-                    
+
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -611,19 +653,29 @@ public class ReviewPanel extends javax.swing.JPanel {
         audiPlayFuture = new Thread(run);
         audiPlayFuture.start();
     }
-    public  void show(Term t) {
+
+    public void show(Term t) {
         startTime = System.currentTimeMillis();
         playAudio(t);
+
         int N = 6;
         gbc.weightx = 1;
         gbc.weighty = 1;
         final HashSet<ImageFile> set;// = useFront ? t.leftSet : t.rightSet;
         set = new HashSet(t.getLeftSet());
         set.addAll(t.getRightSet());
+        //synchronized (imageQueue) 
+        {
+            for (ImageFile f : set) {
+                if(!imageQueue.remove(f))continue;
+                f.priority = 0;
+                imageQueue.add(f);
+            }
+        }
         N = set.size();
         Iterator<ImageFile> iter = set.iterator();
         int width = question.getWidth() * 3 / 16;
-        
+
         for (int y = 0; y < 2; y++) {
             for (int x = 0; x < N / 2.0; x++) {
                 gbc.gridx = x;
@@ -636,6 +688,7 @@ public class ReviewPanel extends javax.swing.JPanel {
                     //if (o instanceof File)
                     {
                         final File f = o.file;
+                        System.out.printf("%s\t%s\n", f.exists(), f);
                         try {
                             JToggleButton btn = ImageManager.imageFile2jButton_x(width, width * 3 / 4, f);
                             panAnswers.add(btn, gbc);
@@ -644,7 +697,7 @@ public class ReviewPanel extends javax.swing.JPanel {
 //                            btn.addMouseListener(action);
 //                            btn.addMouseMotionListener(action);
 //                            btn.addKeyListener(action);
-                            
+
 //                            btn.addMouseListener(new MouseAdapter() {
 //                                
 //                                @Override
@@ -659,7 +712,7 @@ public class ReviewPanel extends javax.swing.JPanel {
 //                            });
                         } catch (Exception e) {
                             System.out.printf("%s: %s\n", e.getMessage(), f);
-                           // e.printStackTrace();
+                            // e.printStackTrace();
                         }
                     }
                 } catch (Exception e) {
@@ -668,10 +721,10 @@ public class ReviewPanel extends javax.swing.JPanel {
 
             }
         }
-     System.out.printf("[[[[[%s]]]]]]\n\n", (System.currentTimeMillis()-startTime));
+        System.out.printf("[[[[[%s]]]]]]\n\n", (System.currentTimeMillis() - startTime));
     }
-    
+
     public void updateScore() {
-        
+
     }
 }

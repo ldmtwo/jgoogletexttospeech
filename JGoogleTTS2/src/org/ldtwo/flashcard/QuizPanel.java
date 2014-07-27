@@ -52,8 +52,6 @@ public class QuizPanel extends ReviewPanel {
     int image_count = 2;
     int num_options = 4;
 
-   
-
     class Action extends MouseAdapter implements Runnable, KeyListener {
 
         @Override
@@ -123,7 +121,7 @@ public class QuizPanel extends ReviewPanel {
         super(f2, hostFrame, hostContainer, inputFile, leftLanguage, rightLanguage);
         this.rules = rules;
 
-panAnswers.setLayout(new FlowLayout());
+        panAnswers.setLayout(new FlowLayout());
 
         rules.put("left-audio", "");
         rules.put("right-audio", "");
@@ -137,14 +135,14 @@ panAnswers.setLayout(new FlowLayout());
         image_count = getInt("image-count", image_count);
         num_options = getInt("num-options", num_options);
 
-        System.out.println("image_count="+image_count);
-        System.out.println("num_options="+num_options);
+        System.out.println("image_count=" + image_count);
+        System.out.println("num_options=" + num_options);
     }
 
     final public int getInt(String name, int defaul) {
         try {
-            int i= Integer.parseInt(rules.get(name));
-            return i>0?i:defaul;
+            int i = Integer.parseInt(rules.get(name));
+            return i > 0 ? i : defaul;
         } catch (Exception exception) {
             return defaul;
         }
@@ -166,7 +164,6 @@ panAnswers.setLayout(new FlowLayout());
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     // End of variables declaration//GEN-END:variables
-
     public void print(Term t) {
         System.out.print(t.toString());
     }
@@ -174,22 +171,26 @@ panAnswers.setLayout(new FlowLayout());
     public void show(Term t) {
         //super.show(t);
         //if(true)return;
-        System.out.printf(":: %s\n",t);
-        if(t==null)return;
-        
+        System.out.printf(":: %s\n", t);
+        if (t == null) {
+            return;
+        }
+
         int pos = shuffledDeck.indexOf(t);
         question.setText(useFront ? t.left : t.right);
         startTime = System.currentTimeMillis();
         gbc.weightx = 1;
         gbc.weighty = 1;
-        System.out.printf(":: %s\n",pos);
-        System.out.printf("num_options:: %s\n",num_options);
-        System.out.printf("image_count:: %s\n",image_count);
-
-        for (int group = pos; group < num_options+pos; group++) {
-            Term term = shuffledDeck.get((group%shuffledDeck.size()));
-            JPanel pan=new JPanel(new FlowLayout());
-            HashSet<ImageFile> set=new HashSet<>();
+        System.out.printf(":: %s\n", pos);
+        System.out.printf("num_options:: %s\n", num_options);
+        System.out.printf("image_count:: %s\n", image_count);
+        LinkedList<JPanel> panels = new LinkedList<>();
+        for (int group = pos; group < num_options + pos; group++) {
+            Term term = shuffledDeck.get((group % shuffledDeck.size()));
+            JPanel pan = new JPanel(new FlowLayout());
+            panels.add(pan);
+            int cnt = 0;
+            HashSet<ImageFile> set = new HashSet<>();
             for (ImageFile imgf : term.getLeftSet()) {
                 try {
                     if (imgf.enabled) {
@@ -197,7 +198,10 @@ panAnswers.setLayout(new FlowLayout());
                         if (imgf.button == null) {
                             imgf.enabled = false;
                         } else {
-                            set.add(imgf);
+
+                            if (cnt++ < image_count) {
+                                set.add(imgf);
+                            }
                         }
                     }
                 } catch (Exception ex) {
@@ -212,46 +216,38 @@ panAnswers.setLayout(new FlowLayout());
                         if (imgf.button == null) {
                             imgf.enabled = false;
                         } else {
-                            set.add(imgf);
+                            if (cnt++ < image_count) {
+                                set.add(imgf);
+                            }
                         }
                     }
-                } catch (Exception e) {System.err.println(e);
+                } catch (Exception e) {
+                    System.err.println(e);
                 }
             }
-            int cnt=0;
-            LinkedList<ImageFile> list=new LinkedList(set);
-            Collections.shuffle(list);
-            for (ImageFile imgf: list) {
-                if(cnt< image_count){
-                    pan.add(imgf.button);
-                    cnt++;
-                }
+            for (ImageFile imgf : set) {
+                pan.add(imgf.button);
             }
-            
-        System.out.printf("group:: %s\n",group);
-        
-        System.out.printf("set:: %s\n",set);
-//            for (int y = 0; y < 2; y++) {
-//                for (int x = 0; x < N / 2; x++) {
-//                    gbc.gridx = x;
-//                    gbc.gridy = y;
-//                }
-//            }
-        pan.updateUI();
-        pan.setPreferredSize(new Dimension(question.getWidth()/num_options/2-5,400));
-                    panAnswers.add(pan, gbc);
+
+            pan.updateUI();
+            pan.setPreferredSize(new Dimension(question.getWidth() / (num_options + 1), 600));
+
         }
-        
+        Collections.shuffle(panels);
+        for (JPanel pan : panels) {
+            panAnswers.add(pan);
+        }
         playAudio(t);
     }
 
- private AbstractButton loadButton(ImageFile imgf) throws IOException {
+    private AbstractButton loadButton(ImageFile imgf) throws IOException {
 
-        int width = question.getWidth() * 3 / 20;
-      
-            return ImageManager.imageFile2jButton_check(width, width * 3 / 4, imgf.file);
-      
+        int width = question.getWidth() / 11;
+
+        return ImageManager.imageFile2jButton_check(width, width * 3 / 4, imgf.file);
+
     }
+
     public void updateScore() {
 
     }

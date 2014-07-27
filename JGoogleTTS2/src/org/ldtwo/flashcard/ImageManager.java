@@ -78,6 +78,7 @@ public class ImageManager {
     final static int MAX_PAGES = 2;
     static int gsTotal = 0, termTotal = 0, imgTotal = 0, prefetchTotal = 0;
     final static PriorityBlockingQueue<Callable> queue = new PriorityBlockingQueue();
+    final static PriorityBlockingQueue<ImageFile> imageQueue = new PriorityBlockingQueue();
 
     static class SchedulerThread extends Thread implements Comparable<Callable> {
 
@@ -200,6 +201,51 @@ public class ImageManager {
     }
 
     public ImageManager() throws Exception {
+
+        for (int i = 0; i < CONCURRENT_DOWNLOADS/2; i++) {
+            imageDownloadExecutor.submit(new Runnable() {
+
+                @Override
+                public void run() {
+                    Exception ex;
+                    while (true) {
+                        try {
+                            ImageFile f = null;
+                            // synchronized (imageQueue) 
+                            {
+                                f = imageQueue.take();
+                            }
+                            String u1 = f.url1, u2 = f.url2;
+                            int notZero = 100;
+                            while (u1.indexOf('%') >= 0 && notZero-- > 0) {
+                                u1 = URLDecoder.decode(u1);
+                            }
+                            while (u2.indexOf('%') >= 0 && notZero-- > 0) {
+                                u2 = URLDecoder.decode(u2);
+                            }
+                            if (notZero <= 0) {
+                                System.err.println("ERROR: INF LOOP DETECTED!\n\t" + u1 + "\n\t" + u2);
+                            }
+                            ex = download(f.file, u1, u2);
+
+                            if (ex != null) {
+                                printURLException(ex, u2);
+                                //throw ex;
+                            } else {
+                                f.set.add(f);
+                            }
+//                        testImageFileValidity(outputFile);
+////                            JButton btn = new JButton();
+//                        set.add(imgf);       
+                        } catch (Exception ex1) {
+                            Logger.getLogger(ImageManager.class.getName()).log(Level.SEVERE, null, ex1);
+                        }
+
+                    }
+                }
+            });
+        }
+
 //        LinkedList<Term> deck = CardFrame.getDeck(
 //                new File("C:\\Users\\Larry\\Desktop\\French class\\vocab\\chpt 4.tab.txt")
 //        );
@@ -208,7 +254,6 @@ public class ImageManager {
 //        for (Term t : deck) {
 //            //System.out.printf("%s\n",t.info());
 //        }
-
     }
     Thread tracker = new Thread() {
 
@@ -222,17 +267,17 @@ public class ImageManager {
                     bytesDownloaded = 0;
                     totalBytesDownloaded += bytesDownloaded_;
                     System.out.printf("DOWNLOADS REMAINING: "
-                            + "Search Queries=%2s/%s, "
-                            + "Terms=%2s/%s, "
-                            + "Image Downloads = %s/%s, "
-                            + "Cache Error Check = %s/%s, \r\n >  >  >  >  >  "
+                            + "Search Queries=%2si %sd, "
+                            + "Terms=%2si %sd, "
+                            + "Image Downloads = %si %sd, "
+                            + "Cache Error Check = %si %sd, \r\n >  >  >  >  >  "
                             + "%s KB/s, "
                             + "%s KB total downloaded"
                             + "\t\t%s\n",
-                            gSearchJobs.size(), gsTotal,
-                            termJobs.size(), termTotal,
-                            imageDownloadJobs.size(), imgTotal,
-                            prefetchJobs.size(), prefetchTotal,
+                            gSearchJobs.size(), gsTotal - gSearchJobs.size(),
+                            termJobs.size(), termTotal - termJobs.size(),
+                            imageDownloadJobs.size(), imgTotal - imageDownloadJobs.size(),
+                            prefetchJobs.size(), prefetchTotal - prefetchJobs.size(),
                             1000 * bytesDownloaded_ / 1024 / (curTime - lastUpdate), totalBytesDownloaded / 1024,
                             new Date());
                     lastUpdate = curTime;
@@ -281,7 +326,9 @@ public class ImageManager {
                             if (true) {
                                 termTotal++;
                                 termJobs.addLast(termExecutor.submit(r));
-                            }else throw new InterruptedException();
+                            } else {
+                                throw new InterruptedException();
+                            }
                         } catch (InterruptedException e) {
                         }
                         //t.leftSet = locateImageFiles(t.left, null);
@@ -374,10 +421,10 @@ public class ImageManager {
         for (int i = 0; i < MAX_IMAGES_PER_QUERY * MAX_PAGES; i++) {
             final File file = query2ImageFile(query, i);
 //            System.out.printf("<?>  FILE: %s\t\t%s\n", file, file.exists());
-            if (file.exists() && file.length() <= MAX_FILE_SIZE) {
+            if (file.exists() && file.length() <= MAX_FILE_SIZE && file.length() > MIN_IMAGE_SIZE) {
                 try {
                     testImageFileValidity(file);
-                    set.add(new ImageFile(file));
+                    set.add(new ImageFile(file, set, "NOT_URL", "NOT_URL"));
                     count++;
                 } catch (Exception ex) {
                     System.out.printf("!!!  INVALID FILE: %s\n", file);
@@ -451,24 +498,24 @@ public class ImageManager {
             jobs.add(sf);
             gsTotal++;
             gSearchJobs.addLast(sf);
-            Thread.sleep(50);
-            Callable c2 = new Callable() {
-                public Object call() {
-                    try {
-                        File outputFile = newResponseFile(query, "4-7");
-                        //talk to google or get recent result
-                        //may or may not block depending on cache
-                        queryToResponseFile(encodedQuery, query, outputFile, "&start=4&label=2");
-                        interpretResponseAndDownload(outputFile, encodedQuery, query, set, pan, MAX_IMAGES_PER_QUERY);
-                    } catch (Exception ex) {
-                    }
-                    return "";
-                }
-            };
-            sf = gSearchExecutor.submit(c2);
-            jobs.add(sf);
-            gsTotal++;
-            gSearchJobs.addLast(sf);
+//            Thread.sleep(50);
+//            Callable c2 = new Callable() {
+//                public Object call() {
+//                    try {
+//                        File outputFile = newResponseFile(query, "4-7");
+//                        //talk to google or get recent result
+//                        //may or may not block depending on cache
+//                        queryToResponseFile(encodedQuery, query, outputFile, "&start=4&label=2");
+//                        interpretResponseAndDownload(outputFile, encodedQuery, query, set, pan, MAX_IMAGES_PER_QUERY);
+//                    } catch (Exception ex) {
+//                    }
+//                    return "";
+//                }
+//            };
+//            sf = gSearchExecutor.submit(c2);
+//            jobs.add(sf);
+//            gsTotal++;
+//            gSearchJobs.addLast(sf);
 //join/collect on queries
             for (Future fut : jobs) {
                 fut.get();
@@ -481,9 +528,9 @@ public class ImageManager {
 //                os.close();
 //            } catch (IOException ex2) {
 //            }
-            
-                                    }catch(RejectedExecutionException ex){
-                                    }catch(InterruptedException ex){
+
+        } catch (RejectedExecutionException ex) {
+        } catch (InterruptedException ex) {
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -538,18 +585,18 @@ public class ImageManager {
         BufferedImage image = ImageIO.read(file);
         Image img = image.getScaledInstance(width, height, Image.SCALE_FAST);
         BufferedImage bad = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-       
+
         Graphics2D g = bad.createGraphics();
         g.setColor(Color.red);
         g.drawImage(img, 0, 0, null);
         //\u2713
         g.setFont(Font.decode("Arial-BOLD-200"));
-        g.drawString("\u2713", width/2-75, height/2+75);
+        g.drawString("\u2713", width / 2 - 75, height / 2 + 75);
         JToggleButton btn;// = new JButton(new ImageIcon(img));
         ImageIcon front = new ImageIcon(img);
         btn = new JToggleButton(front);
         //btn.setRolloverEnabled(true);
-        ImageIcon back=new ImageIcon(bad);
+        ImageIcon back = new ImageIcon(bad);
         btn.setPressedIcon(front);
         btn.setSelectedIcon(back);
         //btn.setRolloverIcon(back);
@@ -559,12 +606,11 @@ public class ImageManager {
         return btn;
     }
 
- 
     public static JToggleButton imageFile2jButton_x(int width, int height, final File file) throws IOException {
         BufferedImage image = ImageIO.read(file);
         Image img = image.getScaledInstance(width, height, Image.SCALE_FAST);
         BufferedImage bad = new BufferedImage(width, height, BufferedImage.TYPE_BYTE_GRAY);
-        ImageObserver imgObs=new ImageObserver() {
+        ImageObserver imgObs = new ImageObserver() {
 
             @Override
             public boolean imageUpdate(Image img, int infoflags, int x, int y, int width, int height) {
@@ -576,12 +622,12 @@ public class ImageManager {
         g.drawImage(img, 0, 0, null);
         //\u2713
         g.setFont(Font.decode("Arial-BOLD-200"));
-        g.drawString("X", width/2-75, height/2+75);
+        g.drawString("X", width / 2 - 75, height / 2 + 75);
         JToggleButton btn;// = new JButton(new ImageIcon(img));
         ImageIcon front = new ImageIcon(img);
         btn = new JToggleButton(front);
         //btn.setRolloverEnabled(true);
-        ImageIcon back=new ImageIcon(bad);
+        ImageIcon back = new ImageIcon(bad);
         btn.setPressedIcon(front);
         btn.setSelectedIcon(back);
         //btn.setRolloverIcon(back);
@@ -610,7 +656,15 @@ public class ImageManager {
                     String imageUrl = obj.getString("url");
                     String unescapedUrl = obj.getString("unescapedUrl");
                     final File outputFile = query2ImageFile(query, indexOffset + i_);
-                    ImageFile imgf = new ImageFile(outputFile);
+                    ImageFile imgf = new ImageFile(outputFile, set, imageUrl, unescapedUrl);
+                    if (true) {
+                        //synchronized (imageQueue) 
+                        {
+                            //f=imageQueue.take();
+                            imageQueue.add(imgf);
+                        }
+                        return "";
+                    }
                     if (set.contains(imgf)) {
                         return "";
                     }
@@ -619,15 +673,15 @@ public class ImageManager {
 
                     //if (outputFile.exists())
                     try {
-                        ex = download(outputFile, imageUrl, unescapedUrl);
-                        if (ex != null) {
-                            throw ex;
-                        }
-                        testImageFileValidity(outputFile);
-//                            JButton btn = new JButton();
-                        set.add(imgf);
+//                        ex = download(outputFile, imageUrl, unescapedUrl);
+//                        if (ex != null) {
+//                            throw ex;
+//                        }
+//                        testImageFileValidity(outputFile);
+////                            JButton btn = new JButton();
+//                        set.add(imgf);
                         //ss = "";
-                    }catch(java.awt.color.CMMException ex2){
+                    } catch (java.awt.color.CMMException ex2) {
                     } catch (IllegalArgumentException ex2) {
                         //System.err.printf(">>>>> failed - bad image: %s\t%s \n", unescapedUrl, ex2);
                     } catch (Exception exception) {
@@ -807,7 +861,7 @@ public class ImageManager {
 
         @Override
         public void mouseEntered(MouseEvent e) {
-           ((JComponent) e.getSource()).setFont(font12);
+            ((JComponent) e.getSource()).setFont(font12);
         }
 
         @Override
@@ -821,6 +875,8 @@ public class ImageManager {
         try {
             JButton item = new JButton(outputFile.getAbsolutePath());
             item.addMouseMotionListener(dlButtonListener);
+            item.setOpaque(true);
+            
             item.setBackground(Color.gray);
             item.setFont(font6);
             item.setAlignmentY(-1);
@@ -843,7 +899,7 @@ public class ImageManager {
             HttpURLConnection connection = (HttpURLConnection) url.openConnection();
             setHttpConnectionProperties(connection);
             int responseCode = 0;
-            responseCode=connection.getResponseCode();
+            responseCode = connection.getResponseCode();
 
             // always check HTTP response code first
             if (responseCode == HttpURLConnection.HTTP_OK) {
@@ -907,7 +963,8 @@ public class ImageManager {
                 return new IOException("Server replied HTTP code: " + responseCode);
             }
             connection.disconnect();
-        }catch(SSLHandshakeException ex){return ex;
+        } catch (SSLHandshakeException ex) {
+            return ex;
         } catch (SocketTimeoutException ex) {
             return ex;
         } catch (Exception ex) {
